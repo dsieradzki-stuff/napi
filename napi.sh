@@ -1286,6 +1286,9 @@ EOF
 # @param napi user
 # @param napi passwd
 #
+# If file name is an empty string and file size is zero, a direct query will be
+# done in mode 17 (whatever it means)
+#
 download_data_xml() {
     local url="http://napiprojekt.pl/api/api-napiprojekt3.php"
     local client_version="2.2.0.2399"
@@ -1299,37 +1302,48 @@ download_data_xml() {
     local lang="${5:-PL}"
     local user="${6:-''}"
     local passwd="${7:-''}"
-    
+
     local http_codes=''
     local status=$RET_OK
     local rv=$RET_OK
-    
-    local data="mode=31&\
+    local mode=31
+
+    # mode 17 means we will perform a direct download and ask for subs hash
+    # directly, without inspecting the file at all.
+    [ -z "$movie_file" ] && [ "$byte_size" = "0" ] && mode=17
+
+    local data="mode=$mode&\
         client=$client_id&\
         client_ver=$client_version&\
         user_nick=$user&\
         user_password=$passwd&\
         downloaded_subtitles_id=$md5sum&\
-        downloaded_subtitles_lang=$lang&\
+        downloaded_subtitles_lang=$lang&"
+
+    # in mode 31 we deliver the file details as well
+    [ "$mode" = "31" ] &&
+        data="$data\
         downloaded_cover_id=$md5sum&\
         advert_type=flashAllowed&\
         video_info_hash=$md5sum&\
         nazwa_pliku=$movie_file&\
-        rozmiar_pliku_bajty=$byte_size&\
-        the=end"
+        rozmiar_pliku_bajty=$byte_size&"
 
+    # append the end query marker
+    data="${data}the=end"
 
     http_codes=$(download_url "$url" "$of" "$data")
     status=$?
     _info $LINENO "otrzymane odpowiedzi http: [$http_codes]"
 
+    # shellcheck disable=SC2086
     if [ "$status" -ne $RET_OK ]; then
         _error "blad wgeta. nie mozna pobrac pliku [$of], odpowiedzi http: [$http_codes]"
         # ... and exit
         rv=$RET_FAIL
     fi
 
-    return $rv
+    return "$rv"
 }
 
 
