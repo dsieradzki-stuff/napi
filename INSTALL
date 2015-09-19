@@ -1,23 +1,23 @@
 AUTOMATIC
 
-Use the install.sh script to copy napi.sh / subotage.sh to the bin directory (/usr/bin - bu default) and napi_common.sh library to a shared directory (/usr/share/napi - bu default).
+Use the install.sh script to copy napi.sh / subotage.sh to the bin directory (/usr/bin - bu default) and libnapi_common.sh library to a shared directory (/usr/share/napi - bu default).
 If you want to install into directories different than defaults specify them in install.sh invocation (USE ABSOLUTE PATHS ONLY).
 
 Examples
 	$ install.sh --bindir /bin --shareddir /shared
-	- this will install napi.sh & subotage.sh under /bin and napi_common.sh under /shared/napi
+	- this will install napi.sh & subotage.sh under /bin and libnapi_common.sh under /shared/napi
 
 or
 
 	$ install.sh --shareddir /my/custom/directory
-	- this will install napi.sh & subotage.sh under /usr/bin (default path) and napi_common.sh under /my/custom/directory/napi
+	- this will install napi.sh & subotage.sh under /usr/bin (default path) and libnapi_common.sh under /my/custom/directory/napi
 
 ########################################
 
 MANUAL
-napi.sh & subotage.sh share some common code from napi_common.sh. Both of them are sourcing this file. Bellow is an example installation procedure given (executables under /usr/bin, libraries under /usr/shared/napi)
+napi.sh & subotage.sh share some common code from libnapi_common.sh. Both of them are sourcing this file. Bellow is an example installation procedure given (executables under /usr/bin, libraries under /usr/shared/napi)
 
-1. Edit path to napi_common.sh in napi.sh & subotage.sh:
+1. Edit path to libnapi_common.sh in napi.sh & subotage.sh:
 
 Search for a variable NAPI_COMMON_PATH
 
@@ -38,7 +38,7 @@ and set it to /usr/shared/napi
 3. Create the /usr/shared/napi directory and place the library inside of it:
 
 	$ mkdir -p /usr/shared/napi
-	$ cp -v napi_common.sh /usr/shared/napi
+	$ cp -v libnapi_common.sh /usr/shared/napi
 
 
 bashnapi bundle is now installed

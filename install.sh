@@ -35,7 +35,7 @@ BIN_dir='/usr/bin'
 SHARED_dir='/usr/share'
 
 declare -ar bin_files=( 'subotage.sh' 'napi.sh' )
-declare -ar shared_files=( 'napi_common.sh' )
+declare -ar shared_files=( 'libnapi_common.sh' )
 
 #
 # replace the common path in given file
