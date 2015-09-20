@@ -12,12 +12,12 @@ declare -r g_revision="v1.3.6"
 ########################################################################
 ########################################################################
 
-#  Copyright (C) 2014 Tomasz Wisniewski aka 
+#  Copyright (C) 2014 Tomasz Wisniewski aka
 #       DAGON <tomasz.wisni3wski@gmail.com>
 #
 #  http://github.com/dagon666
 #  http://pcarduino.blogspot.co.ul
-# 
+#
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -39,11 +39,11 @@ declare -r g_revision="v1.3.6"
 
 ################################## GLOBALS #####################################
 
-declare -r ___VERBOSITY=0
-declare -r ___LOG=1
-declare -r ___FORK=2
-declare -r ___CNT=3
-declare -r ___LOG_OWR=4
+declare -r ___GOUTPUT_VERBOSITY=0
+declare -r ___GOUTPUT_LOGFILE=1
+declare -r ___GOUTPUT_FORKID=2
+declare -r ___GOUTPUT_MSGCNT=3
+declare -r ___GOUTPUT_OWRT=4
 
 #
 # 0 - verbosity
@@ -184,7 +184,7 @@ lookup_key() {
     local i=''
     local idx=0
     local rv=$RET_FAIL
-    local key="$1" 
+    local key="$1"
 
     shift
 
@@ -207,7 +207,7 @@ lookup_key() {
 modify_value() {
     local key=$1 && shift
     local value=$1 && shift
-    
+
     local i=0
     local k=''
     declare -a rv=()
@@ -231,7 +231,7 @@ modify_value() {
 #
 get_cores() {
     local os="${1:-linux}"
-    
+
     if [ "$os" = "darwin" ]; then
         sysctl hw.ncpu | cut -d ' ' -f 2
 	else
@@ -263,8 +263,8 @@ get_http_status() {
 # @brief produce output
 #
 _blit() {
-    printf "#%02d:%04d %s\n" ${g_output[$___FORK]} ${g_output[$___CNT]} "$*"
-    g_output[$___CNT]=$(( g_output[$___CNT] + 1 ))
+    printf "#%02d:%04d %s\n" ${g_output[$___GOUTPUT_FORKID]} ${g_output[$___GOUTPUT_MSGCNT]} "$*"
+    g_output[$___GOUTPUT_MSGCNT]=$(( g_output[$___GOUTPUT_MSGCNT] + 1 ))
 }
 
 
@@ -282,23 +282,23 @@ _debug_insane() {
 #
 _debug() {
     local line="${1:-0}" && shift
-    [ "${g_output[$___VERBOSITY]}" -ge 3 ] && _blit "--- $line: $*"
+    [ "${g_output[$___GOUTPUT_VERBOSITY]}" -ge 3 ] && _blit "--- $line: $*"
     return $RET_OK
 }
 
 
 #
-# @brief print information 
+# @brief print information
 #
 _info() {
     local line=${1:-0} && shift
-    [ "${g_output[$___VERBOSITY]}" -ge 2 ] && _blit "-- $line: $*"
+    [ "${g_output[$___GOUTPUT_VERBOSITY]}" -ge 2 ] && _blit "-- $line: $*"
     return $RET_OK
 }
 
 
 #
-# @brief print warning 
+# @brief print warning
 #
 _warning() {
     _status "WARNING" "$*"
@@ -310,10 +310,10 @@ _warning() {
 # @brief print error message
 #
 _error() {
-    local tmp="${g_output[$___VERBOSITY]}"
-    g_output[$___VERBOSITY]=1
+    local tmp="${g_output[$___GOUTPUT_VERBOSITY]}"
+    g_output[$___GOUTPUT_VERBOSITY]=1
     _status "ERROR" "$*" | to_stderr
-    g_output[$___VERBOSITY]="$tmp"
+    g_output[$___GOUTPUT_VERBOSITY]="$tmp"
     return $RET_OK
 }
 
@@ -322,7 +322,7 @@ _error() {
 # @brief print standard message
 #
 _msg() {
-    [ "${g_output[$___VERBOSITY]}" -ge 1 ] && _blit "- $*"
+    [ "${g_output[$___GOUTPUT_VERBOSITY]}" -ge 1 ] && _blit "- $*"
     return $RET_OK
 }
 
@@ -331,7 +331,7 @@ _msg() {
 # @brief print status type message
 #
 _status() {
-    [ "${g_output[$___VERBOSITY]}" -ge 1 ] && _blit "$1 -> $2"
+    [ "${g_output[$___GOUTPUT_VERBOSITY]}" -ge 1 ] && _blit "$1 -> $2"
     return $RET_OK
 }
 
@@ -340,7 +340,7 @@ _status() {
 # @brief redirect errors to standard error output
 #
 to_stderr() {
-    if [ -n "${g_output[$___LOG]}" ] && [ "${g_output[$___LOG]}" != "none" ]; then
+    if [ -n "${g_output[$___GOUTPUT_LOGFILE]}" ] && [ "${g_output[$___GOUTPUT_LOGFILE]}" != "none" ]; then
         cat
     else
         cat > /dev/stderr
@@ -352,12 +352,12 @@ to_stderr() {
 # @brief redirect stdout to logfile
 #
 redirect_to_logfile() {
-    if [ -n "${g_output[$___LOG]}" ] && [ "${g_output[$___LOG]}" != "none" ]; then
+    if [ -n "${g_output[$___GOUTPUT_LOGFILE]}" ] && [ "${g_output[$___GOUTPUT_LOGFILE]}" != "none" ]; then
         # truncate
-        cat /dev/null > "${g_output[$___LOG]}"
-        
+        cat /dev/null > "${g_output[$___GOUTPUT_LOGFILE]}"
+
         # append instead of ">" to assure that children won't mangle the output
-        exec 3>&1 4>&2 1>> "${g_output[$___LOG]}" 2>&1 
+        exec 3>&1 4>&2 1>> "${g_output[$___GOUTPUT_LOGFILE]}" 2>&1
     fi
 }
 
@@ -367,9 +367,9 @@ redirect_to_logfile() {
 #
 redirect_to_stdout() {
     # restore everything
-    [ -n "${g_output[$___LOG]}" ] && 
-    [ "${g_output[$___LOG]}" != "none" ] && 
-        exec 1>&3 2>&4 4>&- 3>&- 
+    [ -n "${g_output[$___GOUTPUT_LOGFILE]}" ] &&
+    [ "${g_output[$___GOUTPUT_LOGFILE]}" != "none" ] &&
+        exec 1>&3 2>&4 4>&- 3>&-
 }
 
 # EOF
@@ -442,7 +442,7 @@ verify_function_presence() {
         status=$?
         [ "$status" -ne $RET_OK ] && tool='empty'
     fi
-        
+
     # check the output
     [ "$tool" = "function" ] && rv=$RET_OK
     return $rv
@@ -450,7 +450,7 @@ verify_function_presence() {
 
 ################################## DB ##########################################
 
-# that was an experiment which I decided to drop after all. 
+# that was an experiment which I decided to drop after all.
 # those functions provide a mechanism to generate consistently named global vars
 # i.e. _db_set "abc" 1 will create glob. var ___g_db___abc=1
 # left as a reference - do not use it
@@ -459,16 +459,16 @@ verify_function_presence() {
 ## # @global prefix for the global variables generation
 ## #
 ## g_GlobalPrefix="___g_db___"
-## 
-## 
+##
+##
 ## #
 ## # @brief get variable from the db
 ## #
 ## _db_get() {
-##  eval "echo \$${g_GlobalPrefix}_$1"  
+##  eval "echo \$${g_GlobalPrefix}_$1"
 ## }
-## 
-## 
+##
+##
 ## #
 ## # @brief set variable in the db
 ## #
@@ -476,5 +476,5 @@ verify_function_presence() {
 ##  eval "${g_GlobalPrefix}_${1/./_}=\$2"
 ## }
 
-######################################################################## 
+################################################################################
 

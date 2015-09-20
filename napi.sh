@@ -34,6 +34,7 @@
 
 # common library shared between napi and subotage
 declare -r LIBNAPI_COMMON="libnapi_common.sh"
+declare -r LIBNAPI_SYSTEM="libnapi_system.sh"
 
 
 # verify presence of the napi_common library
@@ -49,6 +50,7 @@ fi
 
 # source the common routines
 . "${NAPI_COMMON_PATH}/${LIBNAPI_COMMON}"
+. "${NAPI_COMMON_PATH}/${LIBNAPI_SYSTEM}"
 
 ################################################################################
 
@@ -66,21 +68,6 @@ declare -a g_abbrev=( "" "" )
 # @brief prefix for the original file - before the conversion
 #
 declare g_orig_prefix='ORIG_'
-
-#
-# 0 - system - detected system type
-# - linux
-# - darwin - mac osx
-#
-# 1 - numer of forks
-#
-# 2 - id
-# - pynapi - identifies itself as pynapi
-# - other - identifies itself as other
-# - NapiProjektPython - uses new napiprojekt3 API - NapiProjektPython
-# - NapiProjekt - uses new napiprojekt3 API - NapiProjekt
-#
-declare -a g_system=( 'linux' '1' 'NapiProjektPython' )
 
 #
 # @brief minimum size of files to be processed
@@ -325,7 +312,7 @@ configure_stat() {
     _debug $LINENO "konfiguruje stat"
 
     # verify stat tool
-    if [ "${g_system[0]}" = "darwin" ]; then
+    if [ "${g_system[$___GSYSTEM_SYSTEM]}" = "darwin" ]; then
 
         # stat may be installed through macports, check if
         # there's a need to reconfigure it to BSD flavour
@@ -347,7 +334,7 @@ configure_md5() {
     _debug $LINENO "konfiguruje md5"
 
     # verify md5 tool
-    if [ "${g_system[0]}" = "darwin" ]; then
+    if [ "${g_system[$___GSYSTEM_SYSTEM]}" = "darwin" ]; then
         g_cmd_md5="md5"
     else
         g_cmd_md5="md5sum"
@@ -392,7 +379,7 @@ configure_base64() {
     _debug $LINENO "sprawdzam base64"
 
     # verify base64 & md5 tool
-    if [ "${g_system[0]}" = "darwin" ]; then
+    if [ "${g_system[$___GSYSTEM_SYSTEM]}" = "darwin" ]; then
         g_cmd_base64_decode="base64 -D"
     else
         g_cmd_base64_decode="base64 -d"
@@ -444,17 +431,17 @@ verify_system() {
     _debug $LINENO "weryfikuje system"
 
     # detect the system first
-    g_system[0]="$(get_system)"
+    g_system[$___GSYSTEM_SYSTEM]="$(get_system)"
 
     # establish the number of cores
-    cores=$(get_cores ${g_system[0]})
+    cores=$(get_cores "${g_system[$___GSYSTEM_SYSTEM]}")
 
     # sanity checks
     [ "${#cores}" -eq 0 ] && cores=1
     [ "$cores" -eq 0 ] && cores=1
 
     # two threads on one core should be safe enough
-    g_system[1]=$(( cores * 2 ))
+    g_system[$___GSYSTEM_NFORKS]=$(( cores * 2 ))
 }
 
 
@@ -503,6 +490,7 @@ get_sub_ext() {
     lookup_value "$1" ${fmte[@]}
     status=$?
 
+    # shellcheck disable=SC2086
     [ "$status" -ne $RET_OK ] && echo $g_default_ext
 
     # shellcheck disable=SC2086
@@ -637,7 +625,7 @@ parse_argv() {
             # skip flag
             "-s" | "--skip") g_skip=1 ;;
             # log overwrite option
-            "-lo" | "--log-overwrite") g_output[$___LOG_OWR]=1 ;;
+            "-lo" | "--log-overwrite") g_output[$___GOUTPUT_OWRT]=1 ;;
             # don't delete the xml (debugging purposes)
             "-px" | "--preserve-xml") g_clean_xml=0 ;;
 
@@ -658,12 +646,12 @@ parse_argv() {
             ;;
 
             # identification
-            "-I" | "--id") varname="g_system[2]"
+            "-I" | "--id") varname="g_system[$___GSYSTEM_NAPIID]"
             msg="okresl typ narzedzia jako pynapi/other (legacy API) albo NapiProjekt/NapiProjektPython (API-3)"
             ;;
 
             # logfile
-            "-l" | "--log") varname="g_output[$___LOG]"
+            "-l" | "--log") varname="g_output[$___GOUTPUT_LOGFILE]"
             msg="nie podano nazwy pliku loga"
             ;;
 
@@ -688,7 +676,7 @@ parse_argv() {
             ;;
 
             # verbosity
-            "-v" | "--verbosity") varname="g_output[$___VERBOSITY]"
+            "-v" | "--verbosity") varname="g_output[$___GOUTPUT_VERBOSITY]"
             msg="okresl poziom gadatliwosci (0 - najcichszy, 3 - najbardziej gadatliwy, 4 - insane)"
             ;;
 
@@ -711,7 +699,7 @@ parse_argv() {
             msg="nie określono wstawki dla konwersji"
             ;;
 
-            "-F" | "--forks") varname="g_system[1]"
+            "-F" | "--forks") varname="g_system[$___GSYSTEM_NFORKS]"
             msg="nie określono ilosci watkow"
             ;;
 
@@ -776,24 +764,24 @@ verify_encoding() {
 verify_id() {
     local rv=$RET_OK
 
-    case ${g_system[2]} in
+    case ${g_system[$___GSYSTEM_NAPIID]} in
         'pynapi' | 'other' | 'NapiProjektPython' | 'NapiProjekt' ) ;;
 
         *) # any other - revert to napi projekt 'classic'
         rv=$RET_PARAM
-        g_system[2]='pynapi'
+        g_system[$___GSYSTEM_NAPIID]='pynapi'
         ;;
     esac
 
 
     # 7z check
-    if [ "${g_system[2]}" = 'other' ] ||
-        [ "${g_system[2]}" = 'NapiProjektPython' ] ||
-        [ "${g_system[2]}" = 'NapiProjekt' ]; then
+    if [ "${g_system[$___GSYSTEM_NAPIID]}" = 'other' ] ||
+        [ "${g_system[$___GSYSTEM_NAPIID]}" = 'NapiProjektPython' ] ||
+        [ "${g_system[$___GSYSTEM_NAPIID]}" = 'NapiProjekt' ]; then
 
         if [ -z "$g_cmd_7z" ]; then
             _error "7z nie jest dostepny. zmieniam id na 'pynapi'. PRZYWRACAM TRYB LEGACY"
-            g_system[2]='pynapi'
+            g_system[$___GSYSTEM_NAPIID]='pynapi'
 
             # shellcheck disable=SC2086
             return $RET_UNAV
@@ -802,8 +790,8 @@ verify_id() {
 
 
     # check for necessary tools for napiprojekt3 API
-    if [ "${g_system[2]}" = 'NapiProjektPython' ] ||
-        [ "${g_system[2]}" = 'NapiProjekt' ]; then
+    if [ "${g_system[$___GSYSTEM_NAPIID]}" = 'NapiProjektPython' ] ||
+        [ "${g_system[$___GSYSTEM_NAPIID]}" = 'NapiProjekt' ]; then
 
         declare -a t=( 'base64' 'awk' )
         local p=''
@@ -818,7 +806,7 @@ verify_id() {
 
             if [ "$p" -eq 0 ]; then
                 _error "$k nie jest dostepny. zmieniam id na 'pynapi'. PRZYWRACAM TRYB LEGACY"
-                g_system[2]='pynapi'
+                g_system[$___GSYSTEM_NAPIID]='pynapi'
 
                 # shellcheck disable=SC2086
                 return $RET_UNAV
@@ -964,7 +952,7 @@ verify_argv() {
     local status=0
 
     # make sure first that the printing functions will work
-    case "${g_output[$___VERBOSITY]}" in
+    case "${g_output[$___GOUTPUT_VERBOSITY]}" in
         0 | 1 | 2 | 3 )
             ;;
 
@@ -991,8 +979,8 @@ verify_argv() {
     # make sure we have a number here
     _debug $LINENO 'normalizacja parametrow numerycznych'
     g_min_size=$(( g_min_size + 0 ))
-    g_output[$___VERBOSITY]=$(( g_output[$___VERBOSITY] + 0 ))
-    g_system[1]=$(( g_system[1] + 0 ))
+    g_output[$___GOUTPUT_VERBOSITY]=$(( g_output[$___GOUTPUT_VERBOSITY] + 0 ))
+    g_system[$___GSYSTEM_NFORKS]=$(( g_system[$___GSYSTEM_NFORKS] + 0 ))
 
 
     # verify encoding request
@@ -1012,7 +1000,7 @@ verify_argv() {
 
     case $status in
         $RET_OK )
-            _debug $LINENO "id zweryfikowane pomyslnie [${g_system[2]}]"
+            _debug $LINENO "id zweryfikowane pomyslnie [${g_system[$___GSYSTEM_NAPIID]}]"
             ;;
 
         $RET_PARAM )
@@ -1033,11 +1021,11 @@ verify_argv() {
 
     # logfile verification
     _debug $LINENO 'sprawdzam logfile'
-    if [ -e "${g_output[$___LOG]}" ] &&
-       [ "${g_output[$___LOG]}" != "none" ]; then
+    if [ -e "${g_output[$___GOUTPUT_LOGFILE]}" ] &&
+       [ "${g_output[$___GOUTPUT_LOGFILE]}" != "none" ]; then
 
         # whether to fail or not ?
-        if [ "${g_output[$___LOG_OWR]}" -eq 0 ]; then
+        if [ "${g_output[$___GOUTPUT_OWRT]}" -eq 0 ]; then
             _error "plik loga istnieje, podaj inna nazwe pliku aby nie stracic danych"
 
             # shellcheck disable=SC2086
@@ -1248,9 +1236,9 @@ EOF
 
     # process a stream or a file
     if [ "$input_type" -eq 0 ]; then
-        awk "$awk_script" "$file_path"
+        run_awk_script "$awk_script" "$file_path"
     else
-        awk "$awk_script"
+        run_awk_script "$awk_script"
     fi
 
     return $?
@@ -1349,7 +1337,7 @@ EOF
 download_data_xml() {
     local url="http://napiprojekt.pl/api/api-napiprojekt3.php"
     local client_version="2.2.0.2399"
-    local client_id="${g_system[2]}" # should be something like NapiProjektPython
+    local client_id="${g_system[$___GSYSTEM_NAPIID]}" # should be something like NapiProjektPython
 
     # input data
     local md5sum=${1:-0}
@@ -1648,8 +1636,8 @@ extract_cover_xml() {
 cleanup_xml() {
     local movie_path="${1:-}"
 
-    if [ "${g_system[2]}" != "NapiProjektPython" ] &&
-        [ "${g_system[2]}" != "NapiProjekt" ]; then
+    if [ "${g_system[$___GSYSTEM_NAPIID]}" != "NapiProjektPython" ] &&
+        [ "${g_system[$___GSYSTEM_NAPIID]}" != "NapiProjekt" ]; then
         # don't even bother if id is not configured
         # to any compatible with napiprojekt3 api
         _debug $LINENO "nie ma co sprzatac, plik xml jest tworzony tylko dla napiprojekt3 api"
@@ -1902,7 +1890,7 @@ get_subtitles() {
     _info $LINENO "pobieram napisy dla pliku [$media_file]"
 
     # pick method depending on id
-    case ${g_system[2]} in
+    case ${g_system[$___GSYSTEM_NAPIID]} in
         'NapiProjekt' | 'NapiProjektPython' )
             download_item_xml "subs" "$sum" "$fn" "$of" "$lang"
             status=$?
@@ -1913,7 +1901,7 @@ get_subtitles() {
 
             # g_cred expansion is deliberate
             # shellcheck disable=SC2068
-            download_subs_classic "$sum" "$h" "$of" "$lang" "${g_system[2]}" ${g_cred[@]}
+            download_subs_classic "$sum" "$h" "$of" "$lang" "${g_system[$___GSYSTEM_NAPIID]}" ${g_cred[@]}
             status=$?
             ;;
     esac
@@ -1945,7 +1933,7 @@ get_nfo() {
     _info $LINENO "pobieram nfo dla pliku [$media_file]"
 
     # pick method depending on id
-    case ${g_system[2]} in
+    case ${g_system[$___GSYSTEM_NAPIID]} in
         'NapiProjekt' | 'NapiProjektPython' )
             download_item_xml "nfo" 0 "$1" "$path/$nfo_fn" 'PL'
             status=$?
@@ -1981,7 +1969,7 @@ get_cover() {
     fi
 
     # pick method depending on id
-    case ${g_system[2]} in
+    case ${g_system[$___GSYSTEM_NAPIID]} in
         'NapiProjekt' | 'NapiProjektPython' )
             download_item_xml "cover" "$sum" "$1" "$path/$cover_fn"
             status=$?
@@ -2268,18 +2256,18 @@ convert_format() {
 
     # fps_opt must be expanded for the subotage call
     # shellcheck disable=SC2086
-    subotage.sh -v "${g_output[$___VERBOSITY]}" \
+    subotage.sh -v "${g_output[$___GOUTPUT_VERBOSITY]}" \
         -i "$path/$input" \
         -of $g_sub_format \
-        -t "${g_output[$___FORK]}" \
-        -m "${g_output[$___CNT]}" \
+        -t "${g_output[$___GOUTPUT_FORKID]}" \
+        -m "${g_output[$___GOUTPUT_MSGCNT]}" \
         --ipc-file "$ipc_file" \
         -o "$path/$conv" $fps_opt
     status=$?
 
     # update the message counter
     [ -s "$ipc_file" ] && read msg_counter < "$ipc_file"
-    g_output[$___CNT]=$msg_counter
+    g_output[$___GOUTPUT_MSGCNT]=$msg_counter
 
     # get rid of the ipc file
     [ -e "$ipc_file" ] && $g_cmd_unlink "$ipc_file"
@@ -2671,19 +2659,19 @@ spawn_forks() {
     exec 8<> "$stats_file"
 
     # spawn parallel processing
-    while [ $c -lt "${g_system[1]}" ] && [ $c -lt ${#g_files[@]} ]; do
+    while [ $c -lt "${g_system[$___GSYSTEM_NFORKS]}" ] && [ $c -lt ${#g_files[@]} ]; do
 
-        _debug $LINENO "tworze fork #$(( c + 1 )), przetwarzajacy od $c z incrementem ${g_system[1]}"
+        _debug $LINENO "tworze fork #$(( c + 1 )), przetwarzajacy od $c z incrementem ${g_system[$___GSYSTEM_NFORKS]}"
 
-        g_output[$___FORK]=$(( c + 1 ))
-        old_msg_cnt=${g_output[$___CNT]}
-        g_output[$___CNT]=1 # reset message counter
-        process_files $c ${g_system[1]} &
+        g_output[$___GOUTPUT_FORKID]=$(( c + 1 ))
+        old_msg_cnt=${g_output[$___GOUTPUT_MSGCNT]}
+        g_output[$___GOUTPUT_MSGCNT]=1 # reset message counter
+        process_files $c ${g_system[$___GSYSTEM_NFORKS]} &
 
         # restore original values
-        g_output[$___CNT]=$old_msg_cnt
-        c=${g_output[$___FORK]}
-        g_output[$___FORK]=0
+        g_output[$___GOUTPUT_MSGCNT]=$old_msg_cnt
+        c=${g_output[$___GOUTPUT_FORKID]}
+        g_output[$___GOUTPUT_FORKID]=0
 
     done
 
@@ -2699,7 +2687,7 @@ spawn_forks() {
     fi
 
     # restore main fork id
-    g_output[$___FORK]=0
+    g_output[$___GOUTPUT_FORKID]=0
 
     # shellcheck disable=SC2086
     return $RET_OK
@@ -2744,7 +2732,7 @@ usage() {
     iconv_presence=$(( iconv_presence + 0 ))
 
     echo "=============================================================="
-    echo "napi.sh version $g_revision (identifies as ${g_system[2]})"
+    echo "napi.sh version $g_revision (identifies as ${g_system[$___GSYSTEM_NAPIID]})"
     echo "napi.sh [OPCJE] <plik|katalog|*>"
     echo
 
@@ -2756,8 +2744,8 @@ usage() {
         echo "   -C  | --charset - konwertuj kodowanie plikow (iconv -l - lista dostepnych kodowan)"
 
     echo "   -e  | --ext - rozszerzenie dla pobranych napisow (domyslnie *.txt)"
-    echo "   -F  | --forks - okresl recznie ile rownoleglych procesow utworzyc (dom. ${g_system[1]})"
-    echo "   -I  | --id <pynapi|other|NapiProjektPython|NapiProjekt> - okresla jak napi.sh ma sie przedstawiac serwerom napiprojekt.pl (dom. ${g_system[2]})"
+    echo "   -F  | --forks - okresl recznie ile rownoleglych procesow utworzyc (dom. ${g_system[$___GSYSTEM_NFORKS]})"
+    echo "   -I  | --id <pynapi|other|NapiProjektPython|NapiProjekt> - okresla jak napi.sh ma sie przedstawiac serwerom napiprojekt.pl (dom. ${g_system[$___GSYSTEM_NAPIID]})"
     echo "   -l  | --log <logfile> - drukuj output to pliku zamiast na konsole"
     echo "   -lo | --log-overwrite - jezeli plik loga juz istnieje - nadpisz go"
     echo "   -L  | --language <LANGUAGE_CODE> - pobierz napisy w wybranym jezyku"
@@ -2919,7 +2907,7 @@ main() {
     redirect_to_logfile
 
     _msg "wywolano o $(date)"
-    _msg "system: ${g_system[0]}, forkow: ${g_system[1]}, wersja: $g_revision"
+    _msg "system: ${g_system[$___GSYSTEM_SYSTEM]}, forkow: ${g_system[$___GSYSTEM_NFORKS]}, wersja: $g_revision"
 
     # inform about new napiprojekt API
     print_new_api_info
