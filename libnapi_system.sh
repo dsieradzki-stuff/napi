@@ -50,5 +50,84 @@ declare -r ___GSYSTEM_NAPIID=2
 # - NapiProjektPython - uses new napiprojekt3 API - NapiProjektPython
 # - NapiProjekt - uses new napiprojekt3 API - NapiProjekt
 #
-declare -a g_system=( 'linux' '1' 'NapiProjektPython' )
+declare -a ___g_system=( 'linux' '1' 'NapiProjektPython' )
 
+
+is_system_darwin() {
+    [ "${___g_system[$___GSYSTEM_SYSTEM]}" = "darwin" ]
+}
+
+
+is_api_napiprojekt3() {
+    [ "${___g_system[$___GSYSTEM_NAPIID]}" = "NapiProjekt" ] ||
+        [ "${___g_system[$___GSYSTEM_NAPIID]}" = "NapiProjektPython" ]
+}
+
+
+is_7z_needed() {
+    [ "${___g_system[$___GSYSTEM_NAPIID]}" = 'other' ] ||
+        [ "${___g_system[$___GSYSTEM_NAPIID]}" = 'NapiProjektPython' ] ||
+        [ "${___g_system[$___GSYSTEM_NAPIID]}" = 'NapiProjekt' ]
+}
+
+
+get_forks() {
+    echo "${___g_system[$___GSYSTEM_NFORKS]}"
+}
+
+
+set_forks() {
+    ___g_system[$___GSYSTEM_NFORKS]=$(ensure_numeric "$1")
+}
+
+
+get_system() {
+    echo "${___g_system[$___GSYSTEM_SYSTEM]}"
+}
+
+
+get_napi_id() {
+    echo "${___g_system[$___GSYSTEM_NAPIID]}"
+}
+
+
+set_napi_id() {
+    ___g_system[$___GSYSTEM_NAPIID]="${1:-pynapi}"
+    verify_napi_id
+}
+
+
+verify_napi_id() {
+    case ${___g_system[$___GSYSTEM_NAPIID]} in
+        'pynapi' | 'other' | 'NapiProjektPython' | 'NapiProjekt' ) ;;
+
+        *) # any other - revert to napi projekt 'classic'
+        ___g_system[$___GSYSTEM_NAPIID]='pynapi'
+        return $RET_PARAM
+        ;;
+    esac
+
+    return $RET_OK
+}
+
+
+#
+# @brief verify system settings and gather info about commands
+#
+configure_system_settings() {
+    local cores=1
+    _debug $LINENO "weryfikuje system"
+
+    # detect the system first
+    ___g_system[$___GSYSTEM_SYSTEM]="$(get_system)"
+
+    # establish the number of cores
+    cores=$(get_cores "${g_system[$___GSYSTEM_SYSTEM]}")
+
+    # sanity checks
+    [ "${#cores}" -eq 0 ] && cores=1
+    [ "$cores" -eq 0 ] && cores=1
+
+    # two threads on one core should be safe enough
+    ___g_system[$___GSYSTEM_NFORKS]=$(( cores * 2 ))
+}
