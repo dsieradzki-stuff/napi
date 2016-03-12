@@ -58,7 +58,7 @@ declare -r ___GOUTPUT_OWRT=4
 # 3 - msg counter
 # 4 - flag defining whether to overwrite the log or not
 #
-declare -a g_output=( 1 'none' 0 1 0 )
+declare -a ___g_output=( 1 'none' 0 1 0 )
 
 ################################## RETVAL ######################################
 
@@ -147,6 +147,14 @@ get_value() {
 #
 get_key() {
     echo "${1%=*}"
+}
+
+
+#
+# @brief returns numeric value even for non-numeric input
+#
+ensure_numeric() {
+    echo $(( $1 + 0 ))
 }
 
 
@@ -263,8 +271,8 @@ get_http_status() {
 # @brief produce output
 #
 _blit() {
-    printf "#%02d:%04d %s\n" ${g_output[$___GOUTPUT_FORKID]} ${g_output[$___GOUTPUT_MSGCNT]} "$*"
-    g_output[$___GOUTPUT_MSGCNT]=$(( g_output[$___GOUTPUT_MSGCNT] + 1 ))
+    printf "#%02d:%04d %s\n" ${___g_output[$___GOUTPUT_FORKID]} ${___g_output[$___GOUTPUT_MSGCNT]} "$*"
+    ___g_output[$___GOUTPUT_MSGCNT]=$(( ___g_output[___GOUTPUT_MSGCNT] + 1 ))
 }
 
 
@@ -282,7 +290,7 @@ _debug_insane() {
 #
 _debug() {
     local line="${1:-0}" && shift
-    [ "${g_output[$___GOUTPUT_VERBOSITY]}" -ge 3 ] && _blit "--- $line: $*"
+    [ "${___g_output[$___GOUTPUT_VERBOSITY]}" -ge 3 ] && _blit "--- $line: $*"
     return $RET_OK
 }
 
@@ -292,7 +300,7 @@ _debug() {
 #
 _info() {
     local line=${1:-0} && shift
-    [ "${g_output[$___GOUTPUT_VERBOSITY]}" -ge 2 ] && _blit "-- $line: $*"
+    [ "${___g_output[$___GOUTPUT_VERBOSITY]}" -ge 2 ] && _blit "-- $line: $*"
     return $RET_OK
 }
 
@@ -310,10 +318,10 @@ _warning() {
 # @brief print error message
 #
 _error() {
-    local tmp="${g_output[$___GOUTPUT_VERBOSITY]}"
-    g_output[$___GOUTPUT_VERBOSITY]=1
+    local tmp="${___g_output[$___GOUTPUT_VERBOSITY]}"
+    ___g_output[$___GOUTPUT_VERBOSITY]=1
     _status "ERROR" "$*" | to_stderr
-    g_output[$___GOUTPUT_VERBOSITY]="$tmp"
+    ___g_output[$___GOUTPUT_VERBOSITY]="$tmp"
     return $RET_OK
 }
 
@@ -322,7 +330,7 @@ _error() {
 # @brief print standard message
 #
 _msg() {
-    [ "${g_output[$___GOUTPUT_VERBOSITY]}" -ge 1 ] && _blit "- $*"
+    [ "${___g_output[$___GOUTPUT_VERBOSITY]}" -ge 1 ] && _blit "- $*"
     return $RET_OK
 }
 
@@ -331,7 +339,7 @@ _msg() {
 # @brief print status type message
 #
 _status() {
-    [ "${g_output[$___GOUTPUT_VERBOSITY]}" -ge 1 ] && _blit "$1 -> $2"
+    [ "${___g_output[$___GOUTPUT_VERBOSITY]}" -ge 1 ] && _blit "$1 -> $2"
     return $RET_OK
 }
 
@@ -340,7 +348,7 @@ _status() {
 # @brief redirect errors to standard error output
 #
 to_stderr() {
-    if [ -n "${g_output[$___GOUTPUT_LOGFILE]}" ] && [ "${g_output[$___GOUTPUT_LOGFILE]}" != "none" ]; then
+    if [ -n "${___g_output[$___GOUTPUT_LOGFILE]}" ] && [ "${___g_output[$___GOUTPUT_LOGFILE]}" != "none" ]; then
         cat
     else
         cat > /dev/stderr
@@ -352,12 +360,12 @@ to_stderr() {
 # @brief redirect stdout to logfile
 #
 redirect_to_logfile() {
-    if [ -n "${g_output[$___GOUTPUT_LOGFILE]}" ] && [ "${g_output[$___GOUTPUT_LOGFILE]}" != "none" ]; then
+    if [ -n "${___g_output[$___GOUTPUT_LOGFILE]}" ] && [ "${___g_output[$___GOUTPUT_LOGFILE]}" != "none" ]; then
         # truncate
-        cat /dev/null > "${g_output[$___GOUTPUT_LOGFILE]}"
+        cat /dev/null > "${___g_output[$___GOUTPUT_LOGFILE]}"
 
         # append instead of ">" to assure that children won't mangle the output
-        exec 3>&1 4>&2 1>> "${g_output[$___GOUTPUT_LOGFILE]}" 2>&1
+        exec 3>&1 4>&2 1>> "${___g_output[$___GOUTPUT_LOGFILE]}" 2>&1
     fi
 }
 
@@ -367,8 +375,8 @@ redirect_to_logfile() {
 #
 redirect_to_stdout() {
     # restore everything
-    [ -n "${g_output[$___GOUTPUT_LOGFILE]}" ] &&
-    [ "${g_output[$___GOUTPUT_LOGFILE]}" != "none" ] &&
+    [ -n "${___g_output[$___GOUTPUT_LOGFILE]}" ] &&
+    [ "${___g_output[$___GOUTPUT_LOGFILE]}" != "none" ] &&
         exec 1>&3 2>&4 4>&- 3>&-
 }
 
