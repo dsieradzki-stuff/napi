@@ -129,5 +129,5 @@ configure_system_settings() {
     [ "$cores" -eq 0 ] && cores=1
 
     # two threads on one core should be safe enough
-    ___g_system[$___GSYSTEM_NFORKS]=$(( cores * 2 ))
+    set_forks $(( cores * 2 ))
 }
