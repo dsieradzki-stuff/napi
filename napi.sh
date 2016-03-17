@@ -962,11 +962,6 @@ verify_argv() {
 
     # verify the id setting
     _debug $LINENO 'sprawdzam id'
-
-    system_verify_napi_id
-    [ $? -eq $RET_PARAM ] &&
-        _warning "nieznany id, przywrocono TRYB LEGACY (id = pynapi lub other)"
-
     verify_id
     status=$?
 

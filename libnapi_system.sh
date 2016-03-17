@@ -103,10 +103,14 @@ system_verify_napi_id() {
 
         *) # any other - revert to napi projekt 'classic'
         ___g_system[$___GSYSTEM_NAPIID]='pynapi'
+        _warning "nieznany id, przywrocono TRYB LEGACY (id = pynapi lub other)"
+
+        # shellcheck disable=SC2086
         return $RET_PARAM
         ;;
     esac
 
+    # shellcheck disable=SC2086
     return $RET_OK
 }
 
@@ -122,7 +126,7 @@ system_configure() {
     ___g_system[$___GSYSTEM_SYSTEM]="$(get_system)"
 
     # establish the number of cores
-    cores=$(get_cores "${g_system[$___GSYSTEM_SYSTEM]}")
+    cores=$(get_cores "${___g_system[$___GSYSTEM_SYSTEM]}")
 
     # sanity checks
     [ "${#cores}" -eq 0 ] && cores=1
