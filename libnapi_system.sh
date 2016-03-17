@@ -52,18 +52,28 @@ declare -r ___GSYSTEM_NAPIID=2
 #
 declare -a ___g_system=( 'linux' '1' 'NapiProjektPython' )
 
-
+#
+# @brief check if system is darwin
+#
 system_is_darwin() {
     [ "${___g_system[$___GSYSTEM_SYSTEM]}" = "darwin" ]
 }
 
 
+#
+# @brief check if API is XML (napiprojekt3) or not
+#
 system_is_api_napiprojekt3() {
     [ "${___g_system[$___GSYSTEM_NAPIID]}" = "NapiProjekt" ] ||
         [ "${___g_system[$___GSYSTEM_NAPIID]}" = "NapiProjektPython" ]
 }
 
 
+#
+# @brief check if 7z is needed
+#
+# 7z is required when using specific API type.
+#
 system_is_7z_needed() {
     [ "${___g_system[$___GSYSTEM_NAPIID]}" = 'other' ] ||
         [ "${___g_system[$___GSYSTEM_NAPIID]}" = 'NapiProjektPython' ] ||
@@ -71,32 +81,51 @@ system_is_7z_needed() {
 }
 
 
+#
+# @brief get the number of configured forks
+#
 system_get_forks() {
     echo "${___g_system[$___GSYSTEM_NFORKS]}"
 }
 
 
+#
+# @brief set the number of forks
+#
 system_set_forks() {
     ___g_system[$___GSYSTEM_NFORKS]=$(ensure_numeric "$1")
 }
 
 
+#
+# @brief get system type
+#
 system_get_system() {
     echo "${___g_system[$___GSYSTEM_SYSTEM]}"
 }
 
 
+#
+# @brief get the id used to identify with napiprojekt servers
+#
 system_get_napi_id() {
     echo "${___g_system[$___GSYSTEM_NAPIID]}"
 }
 
 
+#
+# @brief set the id used to identify with napiprojekt servers
+#
 system_set_napi_id() {
     ___g_system[$___GSYSTEM_NAPIID]="${1:-pynapi}"
     verify_napi_id
 }
 
 
+#
+# @brief verify if the configured napi id is correct and auto-correct it if
+# it's not.
+#
 system_verify_napi_id() {
     case ${___g_system[$___GSYSTEM_NAPIID]} in
         'pynapi' | 'other' | 'NapiProjektPython' | 'NapiProjekt' ) ;;
@@ -135,3 +164,5 @@ system_configure() {
     # two threads on one core should be safe enough
     set_forks $(( cores * 2 ))
 }
+
+# EOF
