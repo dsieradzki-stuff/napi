@@ -313,7 +313,7 @@ configure_stat() {
     _debug $LINENO "konfiguruje stat"
 
     # verify stat tool
-    if is_system_darwin; then
+    if system_is_darwin; then
 
         # stat may be installed through macports, check if
         # there's a need to reconfigure it to BSD flavour
@@ -335,7 +335,7 @@ configure_md5() {
     _debug $LINENO "konfiguruje md5"
 
     # verify md5 tool
-    if is_system_darwin; then
+    if system_is_darwin; then
         g_cmd_md5="md5"
     else
         g_cmd_md5="md5sum"
@@ -380,7 +380,7 @@ configure_base64() {
     _debug $LINENO "sprawdzam base64"
 
     # verify base64 & md5 tool
-    if is_system_darwin; then
+    if system_is_darwin; then
         g_cmd_base64_decode="base64 -D"
     else
         g_cmd_base64_decode="base64 -d"
@@ -413,7 +413,7 @@ configure_unlink() {
 # @brief configure external commands
 #
 configure_cmds() {
-    configure_system_settings
+    system_configure
     configure_stat
     configure_md5
     configure_base64
@@ -628,7 +628,7 @@ parse_argv() {
             ;;
 
             # identification
-            "-I" | "--id") funcname="set_napi_id"
+            "-I" | "--id") funcname="system_set_napi_id"
             msg="okresl typ narzedzia jako pynapi/other (legacy API) albo NapiProjekt/NapiProjektPython (API-3)"
             ;;
 
@@ -681,7 +681,7 @@ parse_argv() {
             msg="nie określono wstawki dla konwersji"
             ;;
 
-            "-F" | "--forks") funcname="set_forks"
+            "-F" | "--forks") funcname="system_set_forks"
             msg="nie określono ilosci watkow"
             ;;
 
@@ -752,16 +752,16 @@ verify_id() {
     local rv=$RET_OK
 
     # 7z check
-    if is_7z_needed && [ -z "$g_cmd_7z" ]; then
+    if system_is_7z_needed && [ -z "$g_cmd_7z" ]; then
         _error "7z nie jest dostepny. zmieniam id na 'pynapi'. PRZYWRACAM TRYB LEGACY"
-        set_napi_id 'pynapi'
+        system_set_napi_id 'pynapi'
         # shellcheck disable=SC2086
         return $RET_UNAV
     fi
 
 
     # check for necessary tools for napiprojekt3 API
-    if is_api_napiprojekt3; then
+    if system_is_api_napiprojekt3; then
         declare -a t=( 'base64' 'awk' )
         local p=''
         local k=''
@@ -775,7 +775,7 @@ verify_id() {
 
             if [ "$p" -eq 0 ]; then
                 _error "$k nie jest dostepny. zmieniam id na 'pynapi'. PRZYWRACAM TRYB LEGACY"
-                set_napi_id 'pynapi'
+                system_set_napi_id 'pynapi'
 
                 # shellcheck disable=SC2086
                 return $RET_UNAV
@@ -963,7 +963,7 @@ verify_argv() {
     # verify the id setting
     _debug $LINENO 'sprawdzam id'
 
-    verify_napi_id
+    system_verify_napi_id
     [ $? -eq $RET_PARAM ] &&
         _warning "nieznany id, przywrocono TRYB LEGACY (id = pynapi lub other)"
 
@@ -972,7 +972,7 @@ verify_argv() {
 
     case $status in
         $RET_OK )
-            _debug $LINENO "id zweryfikowane pomyslnie [$(get_napi_id)]"
+            _debug $LINENO "id zweryfikowane pomyslnie [$(system_get_napi_id)]"
             ;;
 
         $RET_UNAV )
@@ -1305,7 +1305,7 @@ EOF
 download_data_xml() {
     local url="http://napiprojekt.pl/api/api-napiprojekt3.php"
     local client_version="2.2.0.2399"
-    local client_id="$(get_napi_id)" # should be something like NapiProjektPython
+    local client_id="$(system_get_napi_id)" # should be something like NapiProjektPython
 
     # input data
     local md5sum=${1:-0}
@@ -1604,7 +1604,7 @@ extract_cover_xml() {
 cleanup_xml() {
     local movie_path="${1:-}"
 
-    if ! is_api_napiprojekt3; then
+    if ! system_is_api_napiprojekt3; then
         # don't even bother if id is not configured
         # to any compatible with napiprojekt3 api
         _debug $LINENO "nie ma co sprzatac, plik xml jest tworzony tylko dla napiprojekt3 api"
@@ -1857,7 +1857,7 @@ get_subtitles() {
     _info $LINENO "pobieram napisy dla pliku [$media_file]"
 
     # pick method depending on id
-    if is_api_napiprojekt3; then
+    if system_is_api_napiprojekt3; then
         download_item_xml "subs" "$sum" "$fn" "$of" "$lang"
         status=$?
     else
@@ -1865,7 +1865,7 @@ get_subtitles() {
 
         # g_cred expansion is deliberate
         # shellcheck disable=SC2068
-        download_subs_classic "$sum" "$h" "$of" "$lang" "$(get_napi_id)" ${g_cred[@]}
+        download_subs_classic "$sum" "$h" "$of" "$lang" "$(system_get_napi_id)" ${g_cred[@]}
         status=$?
     fi
 
@@ -1897,7 +1897,7 @@ get_nfo() {
     _info $LINENO "pobieram nfo dla pliku [$media_file]"
 
     # pick method depending on id
-    if ! is_api_napiprojekt3; then
+    if ! system_is_api_napiprojekt3; then
         _error "pobieranie informacji o pliku jest mozliwe tylko przy uzyciu napiprojekt API-3 (id: NapiProjekPython/NapiProjekt)"
         return $status
     fi
@@ -1928,7 +1928,7 @@ get_cover() {
     fi
 
     # pick method depending on id
-    if is_api_napiprojekt3; then
+    if system_is_api_napiprojekt3; then
         download_item_xml "cover" "$sum" "$1" "$path/$cover_fn"
         status=$?
     else
@@ -2609,7 +2609,7 @@ spawn_forks() {
     local c=0
     local stats_file="$(mktemp stats.XXXXXXXX)"
     local old_msg_cnt=0
-    local nforks="$(get_forks)"
+    local nforks="$(system_get_forks)"
 
     # open fd #8 for statistics collection
     exec 8<> "$stats_file"
@@ -2688,7 +2688,7 @@ usage() {
     iconv_presence=$(( iconv_presence + 0 ))
 
     echo "=============================================================="
-    echo "napi.sh version $g_revision (identifies as $(get_napi_id))"
+    echo "napi.sh version $g_revision (identifies as $(system_get_napi_id))"
     echo "napi.sh [OPCJE] <plik|katalog|*>"
     echo
 
@@ -2700,8 +2700,8 @@ usage() {
         echo "   -C  | --charset - konwertuj kodowanie plikow (iconv -l - lista dostepnych kodowan)"
 
     echo "   -e  | --ext - rozszerzenie dla pobranych napisow (domyslnie *.txt)"
-    echo "   -F  | --forks - okresl recznie ile rownoleglych procesow utworzyc (dom. $(get_forks))"
-    echo "   -I  | --id <pynapi|other|NapiProjektPython|NapiProjekt> - okresla jak napi.sh ma sie przedstawiac serwerom napiprojekt.pl (dom. $(get_napi_id))"
+    echo "   -F  | --forks - okresl recznie ile rownoleglych procesow utworzyc (dom. $(system_get_forks))"
+    echo "   -I  | --id <pynapi|other|NapiProjektPython|NapiProjekt> - okresla jak napi.sh ma sie przedstawiac serwerom napiprojekt.pl (dom. $(system_get_napi_id))"
     echo "   -l  | --log <logfile> - drukuj output to pliku zamiast na konsole"
     echo "   -lo | --log-overwrite - jezeli plik loga juz istnieje - nadpisz go"
     echo "   -L  | --language <LANGUAGE_CODE> - pobierz napisy w wybranym jezyku"
@@ -2860,7 +2860,7 @@ main() {
     redirect_to_logfile
 
     _msg "wywolano o $(date)"
-    _msg "system: $(get_system), forkow: $(get_forks), wersja: $g_revision"
+    _msg "system: $(system_get_system), forkow: $(system_get_forks), wersja: $g_revision"
 
     # inform about new napiprojekt API
     print_new_api_info

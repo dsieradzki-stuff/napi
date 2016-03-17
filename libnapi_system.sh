@@ -53,51 +53,51 @@ declare -r ___GSYSTEM_NAPIID=2
 declare -a ___g_system=( 'linux' '1' 'NapiProjektPython' )
 
 
-is_system_darwin() {
+system_is_darwin() {
     [ "${___g_system[$___GSYSTEM_SYSTEM]}" = "darwin" ]
 }
 
 
-is_api_napiprojekt3() {
+system_is_api_napiprojekt3() {
     [ "${___g_system[$___GSYSTEM_NAPIID]}" = "NapiProjekt" ] ||
         [ "${___g_system[$___GSYSTEM_NAPIID]}" = "NapiProjektPython" ]
 }
 
 
-is_7z_needed() {
+system_is_7z_needed() {
     [ "${___g_system[$___GSYSTEM_NAPIID]}" = 'other' ] ||
         [ "${___g_system[$___GSYSTEM_NAPIID]}" = 'NapiProjektPython' ] ||
         [ "${___g_system[$___GSYSTEM_NAPIID]}" = 'NapiProjekt' ]
 }
 
 
-get_forks() {
+system_get_forks() {
     echo "${___g_system[$___GSYSTEM_NFORKS]}"
 }
 
 
-set_forks() {
+system_set_forks() {
     ___g_system[$___GSYSTEM_NFORKS]=$(ensure_numeric "$1")
 }
 
 
-get_system() {
+system_get_system() {
     echo "${___g_system[$___GSYSTEM_SYSTEM]}"
 }
 
 
-get_napi_id() {
+system_get_napi_id() {
     echo "${___g_system[$___GSYSTEM_NAPIID]}"
 }
 
 
-set_napi_id() {
+system_set_napi_id() {
     ___g_system[$___GSYSTEM_NAPIID]="${1:-pynapi}"
     verify_napi_id
 }
 
 
-verify_napi_id() {
+system_verify_napi_id() {
     case ${___g_system[$___GSYSTEM_NAPIID]} in
         'pynapi' | 'other' | 'NapiProjektPython' | 'NapiProjekt' ) ;;
 
@@ -114,7 +114,7 @@ verify_napi_id() {
 #
 # @brief verify system settings and gather info about commands
 #
-configure_system_settings() {
+system_configure() {
     local cores=1
     _debug $LINENO "weryfikuje system"
 
