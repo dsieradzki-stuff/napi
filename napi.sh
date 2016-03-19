@@ -607,7 +607,7 @@ parse_argv() {
             # skip flag
             "-s" | "--skip") g_skip=1 ;;
             # log overwrite option
-            "-lo" | "--log-overwrite") g_output[$___GOUTPUT_OWRT]=1 ;;
+            "-lo" | "--log-overwrite") output_raise_log_overwrite ;;
             # don't delete the xml (debugging purposes)
             "-px" | "--preserve-xml") g_clean_xml=0 ;;
 
@@ -633,7 +633,7 @@ parse_argv() {
             ;;
 
             # logfile
-            "-l" | "--log") varname="g_output[$___GOUTPUT_LOGFILE]"
+            "-l" | "--log") funcname="output_set_logfile"
             msg="nie podano nazwy pliku loga"
             ;;
 
@@ -658,7 +658,7 @@ parse_argv() {
             ;;
 
             # verbosity
-            "-v" | "--verbosity") varname="g_output[$___GOUTPUT_VERBOSITY]"
+            "-v" | "--verbosity") funcname="output_set_verbosity"
             msg="okresl poziom gadatliwosci (0 - najcichszy, 3 - najbardziej gadatliwy, 4 - insane)"
             ;;
 
@@ -694,7 +694,6 @@ parse_argv() {
 
         # set the global var for simple switches
         # not requiring any further verification
-        # TODO remove this and convert everything to function setters
         if [ -n "$funcname" ] || [ -n "$varname" ]; then
             shift
 
@@ -920,23 +919,6 @@ verify_7z() {
 verify_argv() {
     local status=0
 
-    # make sure first that the printing functions will work
-    case "${g_output[$___GOUTPUT_VERBOSITY]}" in
-        0 | 1 | 2 | 3 )
-            ;;
-
-        4 )
-            _debug_insane
-            ;;
-
-        *)
-            _error "poziom gadatliwosci moze miec jedynie wartosci z zakresu (0-3)"
-
-            # shellcheck disable=SC2086
-            return $RET_BREAK
-            ;;
-    esac
-
     _debug $LINENO "weryfikacja argumentow"
 
     # verify credentials correctness
@@ -948,7 +930,6 @@ verify_argv() {
     # make sure we have a number here
     _debug $LINENO 'normalizacja parametrow numerycznych'
     g_min_size=$(( g_min_size + 0 ))
-    ___g_output[$___GOUTPUT_VERBOSITY]=$(( ___g_output[___GOUTPUT_VERBOSITY] + 0 ))
 
     # verify encoding request
     _debug $LINENO 'sprawdzam wybrane kodowanie'
@@ -981,22 +962,6 @@ verify_argv() {
             return $RET_BREAK
             ;;
     esac
-
-    # logfile verification
-    _debug $LINENO 'sprawdzam logfile'
-    if [ -e "${g_output[$___GOUTPUT_LOGFILE]}" ] &&
-       [ "${g_output[$___GOUTPUT_LOGFILE]}" != "none" ]; then
-
-        # whether to fail or not ?
-        if [ "${g_output[$___GOUTPUT_OWRT]}" -eq 0 ]; then
-            _error "plik loga istnieje, podaj inna nazwe pliku aby nie stracic danych"
-
-            # shellcheck disable=SC2086
-            return $RET_BREAK
-        else
-            _warning "plik loga istnieje, zostanie nadpisany"
-        fi
-    fi
 
     # language verification
     _debug $LINENO 'sprawdzam wybrany jezyk'
@@ -2206,18 +2171,18 @@ convert_format() {
 
     # fps_opt must be expanded for the subotage call
     # shellcheck disable=SC2086
-    subotage.sh -v "${g_output[$___GOUTPUT_VERBOSITY]}" \
+    subotage.sh -v "$(output_get_verbosity)" \
         -i "$path/$input" \
         -of $g_sub_format \
-        -t "${g_output[$___GOUTPUT_FORKID]}" \
-        -m "${g_output[$___GOUTPUT_MSGCNT]}" \
+        -t "$(output_get_fork_id)" \
+        -m "$(output_get_msg_counter)" \
         --ipc-file "$ipc_file" \
         -o "$path/$conv" $fps_opt
     status=$?
 
     # update the message counter
     [ -s "$ipc_file" ] && read msg_counter < "$ipc_file"
-    g_output[$___GOUTPUT_MSGCNT]=$msg_counter
+    output_set_msg_counter "$msg_counter"
 
     # get rid of the ipc file
     [ -e "$ipc_file" ] && $g_cmd_unlink "$ipc_file"
@@ -2614,15 +2579,15 @@ spawn_forks() {
 
         _debug $LINENO "tworze fork #$(( c + 1 )), przetwarzajacy od $c z incrementem $nforks"
 
-        g_output[$___GOUTPUT_FORKID]=$(( c + 1 ))
-        old_msg_cnt=${g_output[$___GOUTPUT_MSGCNT]}
-        g_output[$___GOUTPUT_MSGCNT]=1 # reset message counter
+        output_set_fork_id $(( c + 1 ))
+        old_msg_cnt=$(output_get_msg_counter)
+        output_set_msg_counter 1 # reset message counter
         process_files $c $nforks &
 
         # restore original values
-        g_output[$___GOUTPUT_MSGCNT]=$old_msg_cnt
-        c=${g_output[$___GOUTPUT_FORKID]}
-        g_output[$___GOUTPUT_FORKID]=0
+        output_set_msg_counter "$old_msg_cnt"
+        c=$(output_get_fork_id)
+        output_set_fork_id 0
 
     done
 
@@ -2638,7 +2603,7 @@ spawn_forks() {
     fi
 
     # restore main fork id
-    g_output[$___GOUTPUT_FORKID]=0
+    output_set_fork_id 0
 
     # shellcheck disable=SC2086
     return $RET_OK
@@ -2851,9 +2816,6 @@ main() {
         return $RET_FAIL
     fi
 
-    _info $LINENO "ustawiam STDOUT"
-    redirect_to_logfile
-
     _msg "wywolano o $(date)"
     _msg "system: $(system_get_system), forkow: $(system_get_forks), wersja: $g_revision"
 
@@ -2874,7 +2836,7 @@ main() {
 
     # cleanup & exit
     _info $LINENO "przywracam STDOUT"
-    redirect_to_stdout
+    output_set_logfile "none"
 
     # shellcheck disable=SC2086
     return $RET_OK

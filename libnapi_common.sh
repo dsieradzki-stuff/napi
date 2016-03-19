@@ -456,6 +456,147 @@ verify_function_presence() {
     return $rv
 }
 
+############################# OUTPUT ###########################################
+
+#
+# @brief set the output verbosity level
+#
+# Automatically fall back to standard level if given level is out of range.
+#
+output_set_verbosity() {
+    ___g_output[$___GOUTPUT_VERBOSITY]=$(ensure_numeric "$1")
+    output_verify_verbosity || ___g_output[$___GOUTPUT_VERBOSITY]=1
+    [ ${___g_output[$___GOUTPUT_VERBOSITY]} -eq 4 ] && _debug_insane
+    return $RET_OK
+}
+
+
+#
+# @brief get the output verbosity level
+#
+output_get_verbosity() {
+    echo "${___g_output[$___GOUTPUT_VERBOSITY]}"
+    return $RET_OK
+}
+
+#
+# @brief verify if given verbosity level is in supported range
+#
+output_verify_verbosity() {
+    # make sure first that the printing functions will work
+    _debug $LINENO 'sprawdzam poziom gadatliwosci'
+    case "${___g_output[$___GOUTPUT_VERBOSITY]}" in
+        0 | 1 | 2 | 3 | 4)
+            ;;
+
+        *)
+            _error "poziom gadatliwosci moze miec jedynie wartosci z zakresu (0-4)"
+            # shellcheck disable=SC2086
+            return $RET_PARAM
+            ;;
+    esac
+    return $RET_OK
+}
+
+#
+# @brief set logging to a file or stdout
+#
+output_set_logfile() {
+    if [ "${___g_output[$___GOUTPUT_LOGFILE]}" != "$1" ]; then
+        _info $LINENO "ustawiam STDOUT"
+        redirect_to_stdout
+
+        ___g_output[$___GOUTPUT_LOGFILE]="$1"
+        output_verify_logfile || ___g_output[$___GOUTPUT_LOGFILE]="none"
+
+        redirect_to_logfile
+    fi
+    return $RET_OK
+}
+
+#
+# @brief verify if given logging file can be used
+#
+output_verify_logfile() {
+    _debug $LINENO 'sprawdzam logfile'
+    if [ -e "${___g_output[$___GOUTPUT_LOGFILE]}" ] &&
+       [ "${___g_output[$___GOUTPUT_LOGFILE]}" != "none" ]; then
+
+        # whether to fail or not ?
+        if [ "${___g_output[$___GOUTPUT_OWRT]}" -eq 0 ]; then
+            _error "plik loga istnieje, podaj inna nazwe pliku aby nie stracic danych"
+            # shellcheck disable=SC2086
+            return $RET_PARAM
+        else
+            _warning "plik loga istnieje, zostanie nadpisany"
+        fi
+    fi
+
+    return $RET_OK
+}
+
+#
+# @brief set fork id
+#
+output_set_fork_id() {
+    ___g_output[$___GOUTPUT_FORKID]=$(ensure_numeric "$1")
+    return $RET_OK
+}
+
+
+#
+# @brief get fork id of the current process
+#
+output_get_fork_id() {
+    echo "${___g_output[$___GOUTPUT_FORKID]}"
+    return $RET_OK
+}
+
+
+#
+# @brief set message counter
+#
+output_set_msg_counter() {
+    ___g_output[$___GOUTPUT_MSGCNT]=$(ensure_numeric "$1")
+    return $RET_OK
+}
+
+
+#
+# @brief get message counter
+#
+output_get_msg_counter() {
+    echo "${___g_output[$___GOUTPUT_MSGCNT]}"
+    return $RET_OK
+}
+
+
+#
+# @brief set log overwrite to given value
+#
+output_set_log_overwrite() {
+    ___g_output[$___GOUTPUT_OWRT]=$(ensure_numeric "$1")
+    return $RET_OK
+}
+
+
+#
+# @brief set log overwrite to true
+#
+output_raise_log_overwrite() {
+    output_set_log_overwrite 1
+    return $RET_OK
+}
+
+
+#
+# @brief set log overwrite to false
+#
+output_clear_log_overwrite() {
+    output_set_log_overwrite 0
+    return $RET_OK
+}
+
 ################################## DB ##########################################
 
 # that was an experiment which I decided to drop after all.
@@ -485,4 +626,3 @@ verify_function_presence() {
 ## }
 
 ################################################################################
-
