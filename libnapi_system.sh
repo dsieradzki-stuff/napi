@@ -118,7 +118,7 @@ system_get_napi_id() {
 #
 system_set_napi_id() {
     ___g_system[$___GSYSTEM_NAPIID]="${1:-pynapi}"
-    verify_napi_id
+    verify_napi_id || ___g_system[$___GSYSTEM_NAPIID]='pynapi'
 }
 
 
@@ -128,15 +128,14 @@ system_set_napi_id() {
 #
 system_verify_napi_id() {
     case ${___g_system[$___GSYSTEM_NAPIID]} in
-        'pynapi' | 'other' | 'NapiProjektPython' | 'NapiProjekt' ) ;;
+        'pynapi' | 'other' | 'NapiProjektPython' | 'NapiProjekt' )
+            ;;
 
         *) # any other - revert to napi projekt 'classic'
-        ___g_system[$___GSYSTEM_NAPIID]='pynapi'
-        _warning "nieznany id, przywrocono TRYB LEGACY (id = pynapi lub other)"
-
-        # shellcheck disable=SC2086
-        return $RET_PARAM
-        ;;
+            _warning "Nieznany napiprojekt API id"
+            # shellcheck disable=SC2086
+            return $RET_PARAM
+            ;;
     esac
 
     # shellcheck disable=SC2086
