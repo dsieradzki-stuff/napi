@@ -35,6 +35,7 @@
 # common library shared between napi and subotage
 declare -r LIBNAPI_COMMON="libnapi_common.sh"
 declare -r LIBNAPI_SYSTEM="libnapi_system.sh"
+declare -r LIBNAPI_TOOLS="libnapi_tools.sh"
 
 
 # verify presence of the napi_common library
@@ -52,6 +53,7 @@ fi
 # Order must be maintained!
 . "${NAPI_COMMON_PATH}/${LIBNAPI_COMMON}"
 . "${NAPI_COMMON_PATH}/${LIBNAPI_SYSTEM}"
+. "${NAPI_COMMON_PATH}/${LIBNAPI_TOOLS}"
 
 ################################################################################
 
@@ -174,19 +176,6 @@ g_stats_print=0
 g_clean_xml=1
 
 ################################### TOOLS ######################################
-
-#
-# @brief global tools array
-# =1 - mandatory tool
-# =0 - optional tool
-#
-declare -a g_tools=( 'tr=1' 'printf=1' 'mktemp=1' 'wget=1' \
-    'wc=1' 'dd=1' 'grep=1' 'seq=1' 'sed=1' \
-    'cut=1' 'base64=0' 'unlink=0' 'stat=1' \
-    'basename=1' 'dirname=1' 'cat=1' 'cp=1' \
-    'mv=1' 'awk=0' 'file=0' 'subotage.sh=0' \
-    '7z=0' '7za=0' '7zr=0' 'iconv=0' 'mediainfo=0' \
-    'mplayer=0' 'mplayer2=0' 'ffmpeg=0' 'ffprobe=0' )
 
 # fps detectors
 declare -a g_tools_fps=( 'ffmpeg' 'ffprobe' 'mediainfo' 'mplayer' 'mplayer2' )
@@ -341,8 +330,7 @@ configure_md5() {
         g_cmd_md5="md5sum"
     fi
 
-    # g_tools+=( "$g_cmd_md5=1" )
-    g_tools=( "${g_tools[@]}" "$g_cmd_md5=1" )
+    tools_add_tool "$g_cmd_md5"
 
     # shellcheck disable=SC2086
     return $RET_OK
@@ -398,9 +386,7 @@ configure_unlink() {
     # check unlink command
     _debug $LINENO "sprawdzam obecnosc unlink"
 
-    # this function can cope with that kind of input
-    # shellcheck disable=SC2068
-    [ "$(lookup_value 'unlink' ${g_tools[@]})" = "0" ] &&
+    tools_is_detected "unlink" &&
         _info $LINENO 'brak unlink, g_cmd_unlink = rm' &&
         g_cmd_unlink='rm -rf'
 
@@ -425,9 +411,6 @@ configure_cmds() {
 }
 
 
-#
-# @brief perform tools presence verification
-#
 verify_tools() {
 
     declare -a ret=()
@@ -488,12 +471,7 @@ count_fps_detectors() {
     local v=''
 
     for t in "${g_tools_fps[@]}"; do
-
-        # this function can cope with that kind of input
-        # shellcheck disable=SC2068
-        v=$(lookup_value "$t" ${g_tools[@]})
-        [ "$v" = "1" ] && c=$(( c + 1 ))
-
+        tools_is_detected "$t" && c=$(( c + 1 ))
     done
 
     echo $c
@@ -523,14 +501,7 @@ get_fps() {
         return $RET_PARAM
     fi
 
-    # this function can cope with that kind of input
-    # shellcheck disable=SC2068
-    local tool=$(lookup_value "$1" ${g_tools[@]})
-
-    # prevent empty output
-    tool=$(( tool + 0 ))
-
-    if [ "$tool" -ne 0 ]; then
+    if tools_is_detected "$1"; then
         case "$1" in
             'mplayer' | 'mplayer2' )
             fps=$($1 -identify -vo null -ao null -frames 0 "$2" 2> /dev/null | grep ID_VIDEO_FPS | cut -d '=' -f 2)
@@ -762,17 +733,10 @@ verify_id() {
     # check for necessary tools for napiprojekt3 API
     if system_is_api_napiprojekt3; then
         declare -a t=( 'base64' 'awk' )
-        local p=''
         local k=''
 
         for k in "${t[@]}"; do
-
-            # this function can cope with that kind of input
-            # shellcheck disable=SC2068
-            p=$(lookup_value "$k" ${g_tools[@]})
-            p=$(( p + 0 ))
-
-            if [ "$p" -eq 0 ]; then
+            if ! tools_is_detected "$k"; then
                 _error "$k nie jest dostepny. zmieniam id na 'pynapi'. PRZYWRACAM TRYB LEGACY"
                 system_set_napi_id 'pynapi'
 
@@ -793,14 +757,7 @@ verify_format() {
     # format verification if conversion requested
     if [ "$g_sub_format" != 'default' ]; then
 
-        # this function can cope with that kind of input
-        # shellcheck disable=SC2068
-        local sp=$(lookup_value 'subotage.sh' ${g_tools[@]})
-
-        # make sure it's a number
-        sp=$(( sp + 0 ))
-
-        if [ "$sp" -eq 0 ]; then
+        if ! tools_is_detected "subotage.sh"; then
             _error "subotage.sh nie jest dostepny. konwersja nie jest mozliwa"
 
             # shellcheck disable=SC2086
@@ -830,8 +787,6 @@ verify_format() {
 #
 verify_fps_tool() {
     local t=''
-    local sp=0
-    local n=0
 
     # verify selected fps tool
     if [ "$g_fps_tool" != 'default' ]; then
@@ -845,31 +800,17 @@ verify_fps_tool() {
             return $RET_PARAM
         fi
 
-        # this function can cope with that kind of input
-        # shellcheck disable=SC2068
-        sp=$(lookup_value "$g_fps_tool" ${g_tools[@]})
-
-        # make sure it's a number
-        sp=$(( sp + 0 ))
-
-        if [ "$sp" -eq 0 ]; then
+        if ! tools_is_detected "$g_fps_tool"; then
             _error "$g_fps_tool nie jest dostepny"
 
             # shellcheck disable=SC2086
             return $RET_PARAM
         fi
     else
-        local v=''
-
         # choose first available as the default tool
-        n=$(count_fps_detectors)
-        if [ "$n" -gt 0 ]; then
+        if [ "$(count_fps_detectors)" -gt 0 ]; then
             for t in "${g_tools_fps[@]}"; do
-
-                # this function can cope with that kind of input
-                # shellcheck disable=SC2068
-                v=$(lookup_value $t ${g_tools[@]})
-                [ "$v" -eq 1 ] &&
+                tools_is_detected "$t" &&
                     g_fps_tool=$t &&
                     break
             done
@@ -895,11 +836,7 @@ verify_7z() {
     g_cmd_7z=''
 
     for k in "${t7zs[@]}"; do
-
-        # this function can cope with that kind of input
-        # shellcheck disable=SC2068
-        lv=$(lookup_value "$k" ${g_tools[@]})
-        [ "$lv" = "1" ] &&
+        tools_is_detected "$k" &&
             _info $LINENO "7z wykryty jako [$k]" &&
             g_cmd_7z="$k" &&
             break
@@ -1115,13 +1052,8 @@ run_awk_script() {
     # detect number of arguments
     [ "$num_arg" -eq 1 ] && [ ! -e "$file_path" ] && input_type=1
 
-    # this function can cope with that kind of input
-    # shellcheck disable=SC2068
-    local awk_presence=$(lookup_value 'awk' ${g_tools[@]})
-    awk_presence=$(( awk_presence + 0 ))
-
     # bail out if awk is not available
-    [ "$awk_presence" -eq 0 ] && return $RET_FAIL
+    tools_is_detected "awk" || return $RET_FAIL
 
     # process a stream or a file
     if [ "$input_type" -eq 0 ]; then
@@ -1906,17 +1838,10 @@ get_cover() {
 #
 get_charset() {
     local file="$1"
-
-    # this function can cope with that kind of input
-    # shellcheck disable=SC2068
-    local ft_presence=$(lookup_value 'file' ${g_tools[@]})
     local charset='WINDOWS-1250'
     local et=''
 
-    # sanitizing the value
-    ft_presence=$(( ft_presence + 0 ))
-
-    if [ "$ft_presence" -eq 1 ]; then
+    if tools_is_detected "file"; then
 
         et=$(file \
             --brief \
@@ -2634,18 +2559,11 @@ print_stats() {
 # @brief prints the help & options overview
 #
 usage() {
+    tools_is_detected "subotage.sh"
+    local subotage_presence=$?
 
-    # this function can cope with that kind of input
-    # shellcheck disable=SC2068
-    local subotage_presence=$(lookup_value 'subotage.sh' ${g_tools[@]})
-
-    # this function can cope with that kind of input
-    # shellcheck disable=SC2068
-    local iconv_presence=$(lookup_value 'iconv' ${g_tools[@]})
-
-    # precaution to prevent variables from being empty
-    subotage_presence=$(( subotage_presence + 0 ))
-    iconv_presence=$(( iconv_presence + 0 ))
+    tools_is_detected "iconv"
+    local iconv_presence=$?
 
     echo "=============================================================="
     echo "napi.sh version $g_revision (identifies as $(system_get_napi_id))"
@@ -2656,7 +2574,7 @@ usage() {
     echo "   -b  | --bigger-than <size MB> - szukaj napisow tylko dla plikow wiekszych niz <size>"
     echo "   -c  | --cover - pobierz okladke"
 
-    [ "$iconv_presence" -eq 1 ] &&
+    [ "$iconv_presence" -eq $RET_OK ] &&
         echo "   -C  | --charset - konwertuj kodowanie plikow (iconv -l - lista dostepnych kodowan)"
 
     echo "   -e  | --ext - rozszerzenie dla pobranych napisow (domyslnie *.txt)"
@@ -2674,7 +2592,7 @@ usage() {
     echo "   -v  | --verbosity <0..3> - zmien poziom gadatliwosci 0 - cichy, 3 - debug"
     echo "       | --stats - wydrukuj statystyki (domyslnie nie beda drukowane)"
 
-    if [ "$subotage_presence" -eq 1 ]; then
+    if [ "$subotage_presence" -eq $RET_OK ]; then
         echo "   -d  | --delete-orig - Delete the original file"
         echo "   -f  | --format - konwertuj napisy do formatu (wym. subotage.sh)"
         echo "   -P  | --pref-fps <fps_tool> - preferowany detektor fps (jezeli wykryto jakikolwiek)"
@@ -2698,7 +2616,7 @@ usage() {
     echo " napi.sh katalog_z_filmami - wyszukiwanie we wskazanym katalogu"
     echo "                             i podkatalogach."
 
-    if [ "$subotage_presence" -ne 1 ]; then
+    if [ "$subotage_presence" -ne $RET_OK ]; then
         echo " "
         echo "UWAGA !!!"
         echo "napi.sh moze automatycznie dokonywac konwersji napisow"
@@ -2718,10 +2636,7 @@ usage() {
 
             local t=0
             for t in "${g_tools_fps[@]}"; do
-
-                # this function can cope with that kind of input
-                # shellcheck disable=SC2068
-                [ "$(lookup_value $t ${g_tools[@]})" -eq 1 ] && echo $t
+                tools_is_detected "$t" && echo "$t"
             done
             echo
         else
@@ -2780,9 +2695,7 @@ main() {
     # verify tools presence
     _debug $LINENO "sprawdzam narzedzia ..."
 
-    # this function can cope with that kind of input
-    # shellcheck disable=SC2068
-    g_tools=( $(verify_tools ${g_tools[@]}) )
+    tools_verify_global
 
     if [ $? -ne $RET_OK ]; then
         _error "nie wszystkie wymagane narzedzia sa dostepne"
