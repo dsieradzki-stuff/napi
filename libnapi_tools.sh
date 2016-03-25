@@ -46,6 +46,18 @@ declare -a ___g_tools=( 'tr=1' 'printf=1' 'mktemp=1' 'wget=1' \
     'mplayer=0' 'mplayer2=0' 'ffmpeg=0' 'ffprobe=0' )
 
 
+# fps detectors
+declare -a ___g_tools_fps=( 'ffmpeg' 'ffprobe' \
+    'mediainfo' 'mplayer' 'mplayer2' )
+
+
+declare -r ___GTOOLS_FPSTOOL=0
+declare -a ___g_tools_settings=( 'default' )
+
+
+#
+# @brief append given tool to tools array
+#
 tools_add_tool() {
     _debug $LINENO "Dodaje narzedzie: [$1]"
 
@@ -87,6 +99,9 @@ tools_verify() {
 }
 
 
+#
+# @brief verify all the registered tools from the tools array
+#
 tools_verify_global() {
     # this function can cope with that kind of input
     # shellcheck disable=SC2068
@@ -94,6 +109,9 @@ tools_verify_global() {
 }
 
 
+#
+# @brief check if given tool has been detected
+#
 tools_is_detected() {
     # this function can cope with that kind of input
     # shellcheck disable=SC2068
@@ -105,3 +123,106 @@ tools_is_detected() {
     return $rv
 }
 
+
+#
+# @brief concat the tools array to single line
+#
+tools_to_string() {
+    echo "${___g_tools[*]}"
+}
+
+
+#
+# @brief print fps tools
+#
+tools_fpstools_print() {
+    ( IFS=$'\n'; echo "${___g_tools_fps[*]}" )
+}
+
+
+#
+# @brief
+#
+tools_fpstools_print_with_status() {
+    local t=0
+    for t in "${___g_tools_fps[@]}"; do
+        tools_is_detected "$t" && echo "$t"
+    done
+    return $RET_OK
+}
+
+
+#
+# @brief returns the number of available fps detection tools in the system
+#
+tools_count_fps_detectors() {
+    local c=0
+    local t=""
+    local v=''
+
+    for t in "${___g_tools_fps[@]}"; do
+        tools_is_detected "$t" && c=$(( c + 1 ))
+    done
+
+    echo $c
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+}
+
+
+#
+# @brief set fps tool
+#
+tools_set_fps_tool() {
+    ___g_tools_settings[$___GTOOLS_FPSTOOL]="$1"
+    tools_verify_fps_tool
+}
+
+
+#
+# @brief verify fps tool
+#
+tools_verify_fps_tool() {
+    local t=''
+
+    # fps tool verification
+    _debug $LINENO 'sprawdzam wybrane narzedzie fps'
+
+    # verify selected fps tool
+    if [ "${___g_tools_settings[$___GTOOLS_FPSTOOL]}" != 'default' ]; then
+
+        # this function can cope with that kind of input
+        # shellcheck disable=SC2068
+        if ! lookup_key \
+            "${___g_tools_settings[$___GTOOLS_FPSTOOL]}" \
+            ${___g_tools_fps[@]} > /dev/null; then
+            _error "podane narzedzie jest niewspierane [" \
+                "${___g_tools_settings[$___GTOOLS_FPSTOOL]}]"
+
+            # shellcheck disable=SC2086
+            return $RET_PARAM
+        fi
+
+        if ! tools_is_detected \
+            "${___g_tools_settings[$___GTOOLS_FPSTOOL]}"; then
+            _error "${___g_tools_settings[$___GTOOLS_FPSTOOL]}"\
+                " nie jest dostepny"
+
+            # shellcheck disable=SC2086
+            return $RET_PARAM
+        fi
+    else
+        # choose first available as the default tool
+        if [ "$(tools_count_fps_detectors)" -gt 0 ]; then
+            for t in "${___g_tools_fps[@]}"; do
+                tools_is_detected "$t" &&
+                    ___g_tools_settings[$___GTOOLS_FPSTOOL]="$t" &&
+                    break
+            done
+        fi
+    fi
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+}

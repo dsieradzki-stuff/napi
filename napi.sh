@@ -177,9 +177,6 @@ g_clean_xml=1
 
 ################################### TOOLS ######################################
 
-# fps detectors
-declare -a g_tools_fps=( 'ffmpeg' 'ffprobe' 'mediainfo' 'mplayer' 'mplayer2' )
-
 #
 # @brief wget details
 # 0 - cmd
@@ -463,25 +460,6 @@ get_sub_ext() {
 ##################################### fps ######################################
 
 #
-# @brief returns the number of available fps detection tools in the system
-#
-count_fps_detectors() {
-    local c=0
-    local t=""
-    local v=''
-
-    for t in "${g_tools_fps[@]}"; do
-        tools_is_detected "$t" && c=$(( c + 1 ))
-    done
-
-    echo $c
-
-    # shellcheck disable=SC2086
-    return $RET_OK
-}
-
-
-#
 # @brief detect fps of the video file
 # @param tool
 # @param filename
@@ -638,7 +616,7 @@ parse_argv() {
             msg="nie określono formatu docelowego"
             ;;
 
-            "-P" | "--pref-fps") varname="g_fps_tool"
+            "-P" | "--pref-fps") funcname="tools_set_fps_tool"
             msg="nie określono narzedzia do detekcji fps"
             ;;
 
@@ -671,7 +649,12 @@ parse_argv() {
             # shellcheck disable=SC2086
             [ -z "$1" ] && _error "$msg" && return $RET_FAIL
 
-            [ -n "$funcname" ] && $funcname "$1"
+            if [ -n "$funcname" ] && ! $funcname "$1"; then
+                _error "$funcname failure. Setting parameter failed."
+                # shellcheck disable=SC2086
+                return $RET_FAIL
+            fi
+
             [ -n "$varname" ] && eval "${varname}=\$1"
         fi
         shift
@@ -774,46 +757,6 @@ verify_format() {
 
             # shellcheck disable=SC2086
             return $RET_PARAM
-        fi
-    fi
-
-    # shellcheck disable=SC2086
-    return $RET_OK
-}
-
-
-#
-# @brief verify fps tool
-#
-verify_fps_tool() {
-    local t=''
-
-    # verify selected fps tool
-    if [ "$g_fps_tool" != 'default' ]; then
-
-        # this function can cope with that kind of input
-        # shellcheck disable=SC2068
-        if ! lookup_key "$g_fps_tool" ${g_tools_fps[@]} > /dev/null; then
-            _error "podane narzedzie jest niewspierane [$g_fps_tool]"
-
-            # shellcheck disable=SC2086
-            return $RET_PARAM
-        fi
-
-        if ! tools_is_detected "$g_fps_tool"; then
-            _error "$g_fps_tool nie jest dostepny"
-
-            # shellcheck disable=SC2086
-            return $RET_PARAM
-        fi
-    else
-        # choose first available as the default tool
-        if [ "$(count_fps_detectors)" -gt 0 ]; then
-            for t in "${g_tools_fps[@]}"; do
-                tools_is_detected "$t" &&
-                    g_fps_tool=$t &&
-                    break
-            done
         fi
     fi
 
@@ -927,11 +870,7 @@ verify_argv() {
     _debug $LINENO 'sprawdzam format'
     ! verify_format && return $RET_PARAM
 
-
-    # fps tool verification
-    _debug $LINENO 'sprawdzam wybrane narzedzie fps'
     ! verify_fps_tool && return $RET_PARAM
-
 
     # verify external script
     _debug $LINENO 'sprawdzam zewnetrzny skrypt'
@@ -2628,23 +2567,19 @@ usage() {
         echo " napi.sh -f subrip *       - sciaga napisy dla kazdego znalezionego pliku"
         echo "                           po czym konwertuje je do formatu subrip"
 
-        local c_fps=$(count_fps_detectors)
+        local c_fps=$(tools_count_fps_detectors)
 
         if [ "$c_fps" -gt 0 ]; then
             echo
             echo "Wykryte narzedzia detekcji FPS"
-
-            local t=0
-            for t in "${g_tools_fps[@]}"; do
-                tools_is_detected "$t" && echo "$t"
-            done
+            tools_fpstools_print_with_status
             echo
         else
             echo
             echo "By moc okreslac FPS na podstawie pliku video a nie na"
             echo "podstawie pierwszej linii pliku (w przypadku konwersji z microdvd)"
             echo "zainstaluj dodatkowo jedno z tych narzedzi (dowolne)"
-            ( IFS=$'\n'; echo "${g_tools_fps[*]}" )
+            tools_fpstools_print
             echo
         fi
     fi
@@ -2654,23 +2589,6 @@ usage() {
 }
 
 ################################################################################
-
-#
-# @brief inform that we're using new API now
-#
-print_new_api_info() {
-    _msg "================================================="
-    _msg "napi.sh od wersji 1.3.1 domyslnie uzywa nowego"
-    _msg "API (napiprojekt-3)"
-    _msg "Jezeli zauwazysz jakies problemy z nowym API"
-    _msg "albo skrypt dziala zbyt wolno, mozesz wrocic do"
-    _msg "starego API korzystajac z opcji --id pynapi"
-    _msg "================================================="
-
-    # shellcheck disable=SC2086
-    return $RET_OK
-}
-
 
 #
 # @brief main function
@@ -2699,13 +2617,13 @@ main() {
 
     if [ $? -ne $RET_OK ]; then
         _error "nie wszystkie wymagane narzedzia sa dostepne"
-        _debug $LINENO "${g_tools[*]}"
+        _debug $LINENO $(tools_to_string)
 
         # shellcheck disable=SC2086
         return $RET_FAIL
     fi
 
-    _debug $LINENO ${g_tools[*]}
+    _debug $LINENO $(tools_to_string)
 
     # if no arguments are given, then print help and exit
     # shellcheck disable=SC2086

@@ -597,6 +597,24 @@ output_clear_log_overwrite() {
     return $RET_OK
 }
 
+
+#
+# @brief inform that we're using new API now
+#
+print_new_api_info() {
+    _msg "================================================="
+    _msg "$0 od wersji 1.3.1 domyslnie uzywa nowego"
+    _msg "API (napiprojekt-3)"
+    _msg "Jezeli zauwazysz jakies problemy z nowym API"
+    _msg "albo skrypt dziala zbyt wolno, mozesz wrocic do"
+    _msg "starego API korzystajac z opcji --id pynapi"
+    _msg "================================================="
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+}
+
+
 ################################## DB ##########################################
 
 # that was an experiment which I decided to drop after all.
