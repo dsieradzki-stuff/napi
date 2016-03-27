@@ -33,12 +33,23 @@
 
 
 declare -r ___GIO_UNLINK=0
+declare -r ___GIO_STAT=1
+declare -r ___GIO_BASE64=2
+declare -r ___GIO_MD5=3
+declare -r ___GIO_CP=4
+declare -r ___GIO_7Z=5
 
-declare -a ___g_io=( 'unlink' )
+declare -a ___g_io=( 'unlink' 'stat -c%s' 'base64 -d' \
+    'md5sum' 'cp' 'none' )
 
 
 io_unlink() {
     ${___g_io[$___GIO_UNLINK]} "$@"
+}
+
+
+io_stat() {
+    ${___g_io[$___GIO_STAT]} "$@"
 }
 
 
@@ -129,4 +140,47 @@ io_convert_encoding() {
     _msg "[$filename]: konwertowanie kodowania do $encoding"
     io_convert_encoding_generic \
         "$filepath" "$encoding"
+}
+
+
+#
+# configure the md5 tool
+#
+io_configure_md5() {
+    _debug $LINENO "konfiguruje md5"
+
+    # verify md5 tool
+    ___g_io[$___GIO_MD5]="md5sum"
+    system_is_darwin && ___g_io[$___GIO_MD5]="md5"
+    tools_add_tool "${___g_io[$___GIO_MD5]}"
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+}
+
+
+#
+# configure the stat tool
+#
+io_configure_stat() {
+    _debug $LINENO "konfiguruje stat"
+
+    # verify stat tool
+    ___g_io[$___GIO_STAT]="stat -c%s"
+
+    if system_is_darwin; then
+        # stat may be installed through macports, check if
+        # there's a need to reconfigure it to BSD flavour
+        "${___g_io[$___GIO_STAT]}" "$0" > /dev/null 2>&1 &&
+            ___g_io[$___GIO_STAT]="stat -f%z"
+    fi
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+}
+
+
+io_configure() {
+    io_configure_md5
+    io_configure_stat
 }

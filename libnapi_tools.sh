@@ -102,7 +102,7 @@ tools_verify() {
 #
 # @brief verify all the registered tools from the tools array
 #
-tools_verify_global() {
+tools_configure() {
     # this function can cope with that kind of input
     # shellcheck disable=SC2068
     ___g_tools=( $(tools_verify ${___g_tools[@]}) )

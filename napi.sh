@@ -268,10 +268,10 @@ normalize_language() {
 
 cleanup_tmp_files() {
     _debug $LINENO "usuwam pliki tymczasowe (jesli istnieja)"
-    $g_cmd_unlink napisy.7z.*
-    $g_cmd_unlink napi.*
-    $g_cmd_unlink ipc.*
-    $g_cmd_unlink stats.*
+    io_unlink napisy.7z.*
+    io_unlink napi.*
+    io_unlink ipc.*
+    io_unlink stats.*
 }
 
 
@@ -279,48 +279,6 @@ trap_control_c() {
     _msg $LINENO "przechwycono CTRL+C, koncze wykonywanie...";
     cleanup_tmp_files
     exit $?
-}
-
-
-#
-# configure the stat tool
-#
-configure_stat() {
-    _debug $LINENO "konfiguruje stat"
-
-    # verify stat tool
-    if system_is_darwin; then
-
-        # stat may be installed through macports, check if
-        # there's a need to reconfigure it to BSD flavour
-        $g_cmd_stat "$0" > /dev/null 2>&1
-        [ $? != 0 ] && g_cmd_stat="stat -f%z"
-    else
-        g_cmd_stat="stat -c%s"
-    fi
-
-    # shellcheck disable=SC2086
-    return $RET_OK
-}
-
-
-#
-# configure the md5 tool
-#
-configure_md5() {
-    _debug $LINENO "konfiguruje md5"
-
-    # verify md5 tool
-    if system_is_darwin; then
-        g_cmd_md5="md5"
-    else
-        g_cmd_md5="md5sum"
-    fi
-
-    tools_add_tool "$g_cmd_md5"
-
-    # shellcheck disable=SC2086
-    return $RET_OK
 }
 
 
@@ -1166,7 +1124,7 @@ get_xml() {
         # verify the size
         if [ "$size" -lt "$min_size" ]; then
             _error "downloaded xml file's size is less than $min_size"
-            $g_cmd_unlink "$xml_path"
+            io_unlink "$xml_path"
             rv=$RET_FAIL
         fi
     fi
@@ -1240,10 +1198,10 @@ extract_subs_xml() {
     fi
 
     # get rid of the subs
-    [ "$rv" != $RET_OK ] && [ -e "$subs_path" ] && $g_cmd_unlink "$subs_path"
+    [ "$rv" != $RET_OK ] && [ -e "$subs_path" ] && io_unlink "$subs_path"
 
     # get rid of the archive
-    [ -e "$tmp_7z_archive" ] && $g_cmd_unlink "$tmp_7z_archive"
+    [ -e "$tmp_7z_archive" ] && io_unlink "$tmp_7z_archive"
 
     return "$rv"
 }
@@ -1352,7 +1310,7 @@ extract_cover_xml() {
 
     if ! [ -s "$cover_path" ]; then
         _info $LINENO "okladka ma zerowy rozmiar, usuwam..."
-        [ -e "$cover_path" ] && $g_cmd_unlink "$cover_path"
+        [ -e "$cover_path" ] && io_unlink "$cover_path"
         rv=$RET_FAIL
     fi
 
@@ -1383,7 +1341,7 @@ cleanup_xml() {
 
     # check for file presence
     if [ -e "$path/$xmlfile" ] && [ $g_clean_xml -ge 1 ]; then
-        $g_cmd_unlink "$path/$xmlfile"
+        io_unlink "$path/$xmlfile"
         _debug $LINENO "usunieto plik xml dla [$movie_file]"
     fi
 
@@ -1498,7 +1456,7 @@ download_subs_classic() {
         _error "blad wgeta. nie mozna pobrac pliku [$of], odpowiedzi http: [$http_codes]"
 
         # cleanup
-        [ "$id" = "other" ] && [ -e "$dof" ] && $g_cmd_unlink "$dof"
+        [ "$id" = "other" ] && [ -e "$dof" ] && io_unlink "$dof"
 
         # ... and exit
         # shellcheck disable=SC2086
@@ -1515,20 +1473,20 @@ download_subs_classic() {
         $g_cmd_7z x -y -so -p"$napi_pass" "$dof" 2> /dev/null > "$of"
         status=$?
 
-        [ -e "$dof" ] && $g_cmd_unlink "$dof"
+        [ -e "$dof" ] && io_unlink "$dof"
 
         # check 7z status
         if [ "$status" -ne $RET_OK ]; then
             _error "7z zwraca blad. nie mozna rozpakowac napisow"
             rv=$RET_FAIL
-            [ -e "$of" ] && $g_cmd_unlink "$of"
+            [ -e "$of" ] && io_unlink "$of"
         fi
 
         # check file existence
         if [ ! -s "$of" ]; then
             _info $LINENO "plik docelowy ma zerowy rozmiar"
             rv=$RET_FAIL
-            [ -e "$of" ] && $g_cmd_unlink "$of"
+            [ -e "$of" ] && io_unlink "$of"
         fi
         ;;
 
@@ -1565,7 +1523,7 @@ download_subs_classic() {
             _debug $LINENO "$fdata"
 
             rv=$RET_FAIL
-            $g_cmd_unlink "$of"
+            io_unlink "$of"
         fi
     fi
 
@@ -1592,7 +1550,7 @@ download_cover_classic() {
         # if file doesn't exist or has zero size
         if ! [ -s "$2" ]; then
             rv=$RET_UNAV
-            [ -e "$2" ] && $g_cmd_unlink "$2"
+            [ -e "$2" ] && io_unlink "$2"
         fi
     fi
 
@@ -1890,7 +1848,7 @@ convert_format() {
         cp "$path/$input" "$path/$orig"
     else
         # get rid of it, if it already exists
-        [ -e "$path/$orig" ] && $g_cmd_unlink "$path/$orig"
+        [ -e "$path/$orig" ] && io_unlink "$path/$orig"
     fi
 
     # detect video file framerate
@@ -1927,14 +1885,14 @@ convert_format() {
     output_set_msg_counter "$msg_counter"
 
     # get rid of the ipc file
-    [ -e "$ipc_file" ] && $g_cmd_unlink "$ipc_file"
+    [ -e "$ipc_file" ] && io_unlink "$ipc_file"
 
     # remove the old format if conversion was successful
     if [ $status -eq $RET_OK ]; then
         _msg "pomyslnie przekonwertowano do $g_sub_format"
         [ "$input" != "$conv" ] &&
             _info $LINENO "usuwam oryginalny plik" &&
-            $g_cmd_unlink "$path/$input"
+            io_unlink "$path/$input"
 
     elif [ $status -eq $RET_NOACT ]; then
         _msg "subotage.sh - konwersja nie jest konieczna"
@@ -1945,7 +1903,7 @@ convert_format() {
         # get rid of the original file
         [ "$input" != "$conv" ] &&
             _msg "usuwam oryginalny plik" &&
-            $g_cmd_unlink "$path/$input"
+            io_unlink "$path/$input"
 
         rv=$RET_OK
 
@@ -1958,7 +1916,7 @@ convert_format() {
     fi
 
     # delete a backup
-    [ -e "$tmp" ] && $g_cmd_unlink "$tmp"
+    [ -e "$tmp" ] && io_unlink "$tmp"
     return "$rv"
 }
 
@@ -2336,7 +2294,7 @@ spawn_forks() {
         sum_stats "$stats_file"
         # close the fd
         exec 8>&-
-        $g_cmd_unlink "$stats_file"
+        io_unlink "$stats_file"
     fi
 
     # restore main fork id
@@ -2486,7 +2444,7 @@ main() {
     # verify tools presence
     _debug $LINENO "sprawdzam narzedzia ..."
 
-    tools_verify_global
+    tools_configure
 
     if [ $? -ne $RET_OK ]; then
         _error "nie wszystkie wymagane narzedzia sa dostepne"
