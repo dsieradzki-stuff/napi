@@ -35,6 +35,7 @@
 declare -r ___GSYSTEM_SYSTEM=0
 declare -r ___GSYSTEM_NFORKS=1
 declare -r ___GSYSTEM_NAPIID=2
+declare -r ___GSYSTEM_ENCODING=3
 
 
 #
@@ -50,7 +51,10 @@ declare -r ___GSYSTEM_NAPIID=2
 # - NapiProjektPython - uses new napiprojekt3 API - NapiProjektPython
 # - NapiProjekt - uses new napiprojekt3 API - NapiProjekt
 #
-declare -a ___g_system=( 'linux' '1' 'NapiProjektPython' )
+# 3 - text encoding
+# defines the charset of the resulting file
+#
+declare -a ___g_system=( 'linux' '1' 'NapiProjektPython' 'default' )
 
 #
 # @brief check if system is darwin
@@ -163,5 +167,44 @@ system_configure() {
     # two threads on one core should be safe enough
     set_forks $(( cores * 2 ))
 }
+
+
+#
+# @brief set the desired output file encoding
+#
+system_set_encoding() {
+    ___g_system[$___GOUTPUT_ENCODING]="${1:-default}"
+    if ! system_verify_encoding; then
+        _warning "charset [$g_charset] niewspierany, ignoruje zadanie"
+        ___g_system[$___GOUTPUT_ENCODING]="default"
+    fi
+    return $RET_OK
+}
+
+
+#
+# @brief get the output file encoding
+#
+system_get_encoding() {
+    echo "${___g_system[$___GOUTPUT_ENCODING]}"
+}
+
+
+#
+# @brief checks if the given encoding is supported
+#
+system_verify_encoding() {
+    [ "${___g_system[$___GOUTPUT_ENCODING]}" = 'default' ] &&
+        return $RET_OK
+
+    ! tools_is_detected "iconv" &&
+        _warning "iconv jest niedostepny. Konwersja kodowania niewsperana" &&
+        return $RET_UNAV
+
+    echo test | iconv \
+        -t "${___g_system[$___GOUTPUT_ENCODING]}" > /dev/null 2>&1
+    return $?
+}
+
 
 # EOF

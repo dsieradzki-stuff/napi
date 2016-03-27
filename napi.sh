@@ -98,11 +98,6 @@ declare g_skip=0
 declare g_delete_orig=0
 
 #
-# @brief defines the charset of the resulting file
-#
-declare g_charset='default'
-
-#
 # @brief default subtitles language
 #
 declare g_lang='PL'
@@ -567,7 +562,7 @@ parse_argv() {
             "-M" | "--move") g_cmd_cp='mv' ;;
 
             # charset conversion
-            "-C" | "--charset") varname="g_charset"
+            "-C" | "--charset") funcname="system_set_encoding"
             msg="nie podano docelowego kodowania"
             ;;
 
@@ -689,16 +684,6 @@ verify_credentials() {
 
 
 #
-# @brief checks if the given encoding is supported
-#
-verify_encoding() {
-    [ "$1" = 'default' ] && return $RET_OK
-    echo test | iconv -t "$1" > /dev/null 2>&1
-    return $?
-}
-
-
-#
 # @brief checks id
 #
 verify_id() {
@@ -809,14 +794,7 @@ verify_argv() {
 
     # make sure we have a number here
     _debug $LINENO 'normalizacja parametrow numerycznych'
-    g_min_size=$(( g_min_size + 0 ))
-
-    # verify encoding request
-    _debug $LINENO 'sprawdzam wybrane kodowanie'
-    if ! verify_encoding "$g_charset"; then
-        _warning "charset [$g_charset] niewspierany, ignoruje zadanie"
-        g_charset='default'
-    fi
+    g_min_size=$(ensure_numeric "$g_min_size")
 
     # check the 7z tool presence
     verify_7z
@@ -887,40 +865,6 @@ verify_argv() {
 }
 
 ################################# napiprojekt ##################################
-
-#
-# @brief: mysterious f() function
-# @param: md5sum
-#
-f() {
-    declare -a t_idx=( 0xe 0x3 0x6 0x8 0x2 )
-    declare -a t_mul=( 2 2 5 4 3 )
-    declare -a t_add=( 0 0xd 0x10 0xb 0x5 )
-    local sum="$1"
-    local b=""
-    local i=0
-
-    # for i in {0..4}; do
-    # again in order to be compliant with bash < 3.0
-    for i in $(seq 0 4); do
-        local a=${t_add[$i]}
-        local m=${t_mul[$i]}
-        local g=${t_idx[$i]}
-
-        local t=$(( a + 16#${sum:$g:1} ))
-        local v=$(( 16#${sum:$t:2} ))
-
-        local x=$(( (v*m) % 0x10 ))
-        local z=$(printf "%x" $x)
-        b="$b$z"
-    done
-
-    echo "$b"
-
-    # shellcheck disable=SC2086
-    return $RET_OK
-}
-
 
 #
 # @brief wrapper for wget
@@ -1692,7 +1636,7 @@ get_subtitles() {
         download_item_xml "subs" "$sum" "$fn" "$of" "$lang"
         status=$?
     else
-        h=$(f "$sum" | lcase)
+        h=$(napiprojekt_f "$sum" | lcase)
 
         # g_cred expansion is deliberate
         # shellcheck disable=SC2068
@@ -1813,61 +1757,7 @@ get_charset() {
 }
 
 
-#
-# @brief convert charset of the file
-# @param input file path
-# @param output charset
-# @param input charset or null
-#
-convert_charset() {
-    local file="$1"
-    local d="${2:-utf8}"
-    local s="${3}"
-    local rv=$RET_FAIL
-
-    # detect charset
-    [ -z "$s" ] && s=$(get_charset "$file")
-
-    local tmp=$(mktemp napi.XXXXXXXX)
-    iconv -f "$s" -t "$d" "$file" > "$tmp"
-
-    if [ $? -eq $RET_OK ]; then
-        _debug $LINENO "moving after charset conv. $tmp -> $file"
-        mv "$tmp" "$file"
-        rv=$RET_OK
-    fi
-
-    [ -e "$tmp" ] && $g_cmd_unlink "$tmp"
-
-    return "$rv"
-}
-
 ################################# file handling ################################
-
-#
-# @brief: check if the given file is a video file
-# @param: video filename
-# @return: bool 1 - is video file, 0 - is not a video file
-#
-verify_extension() {
-    local filename=$(basename "$1")
-    local extension=$(get_ext "$filename" | lcase)
-    local is_video=0
-
-    declare -a formats=( 'avi' 'rmvb' 'mov' 'mp4' 'mpg' 'mkv' \
-        'mpeg' 'wmv' '3gp' 'asf' 'divx' \
-        'm4v' 'mpe' 'ogg' 'ogv' 'qt' )
-
-    # this function can cope with that kind of input
-    # shellcheck disable=SC2068
-    lookup_key "$extension" ${formats[@]} > /dev/null && is_video=1
-
-    echo $is_video
-
-    # shellcheck disable=SC2086
-    return $RET_OK
-}
-
 
 #
 # @brief prepare a list of file which require processing
@@ -2331,9 +2221,8 @@ process_file() {
             si=7
 
         # charset conversion (only if freshly downloaded)
-        [ "$g_charset" != 'default' ] && [ $status -eq $RET_OK ] &&
-            _msg "konwertowanie kodowania do $g_charset" &&
-            convert_charset "$path/${g_pf[$si]}" $g_charset
+        [ $status -eq $RET_OK ] &&
+            napiprojekt_convert_encoding "$path/${g_pf[$si]}"
 
         # process nfo requests
         obtain_others "nfo" "$media_path"

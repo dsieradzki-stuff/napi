@@ -597,6 +597,7 @@ output_clear_log_overwrite() {
     return $RET_OK
 }
 
+################################ COMMON ########################################
 
 #
 # @brief inform that we're using new API now
@@ -614,6 +615,29 @@ print_new_api_info() {
     return $RET_OK
 }
 
+#
+# @brief: check if the given file is a video file
+# @param: video filename
+# @return: bool 1 - is video file, 0 - is not a video file
+#
+verify_extension() {
+    local filename=$(basename "$1")
+    local extension=$(get_ext "$filename" | lcase)
+    local is_video=0
+
+    declare -a formats=( 'avi' 'rmvb' 'mov' 'mp4' 'mpg' 'mkv' \
+        'mpeg' 'wmv' '3gp' 'asf' 'divx' \
+        'm4v' 'mpe' 'ogg' 'ogv' 'qt' )
+
+    # this function can cope with that kind of input
+    # shellcheck disable=SC2068
+    lookup_key "$extension" ${formats[@]} > /dev/null && is_video=1
+
+    echo $is_video
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+}
 
 ################################## DB ##########################################
 
