@@ -344,7 +344,6 @@ configure_unlink() {
 # @brief configure external commands
 #
 configure_cmds() {
-    system_configure
     configure_stat
     configure_md5
     configure_base64

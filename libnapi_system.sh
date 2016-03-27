@@ -57,14 +57,14 @@ declare -r ___GSYSTEM_HOOK=4
 #
 # 4 - external script
 #
-declare -a ___g_system=( 'linux' '1' 'NapiProjektPython' \
+declare -a ___g_system=( 'none' '0' 'NapiProjektPython' \
     'default' 'none' )
 
 #
 # @brief check if system is darwin
 #
 system_is_darwin() {
-    [ "${___g_system[$___GSYSTEM_SYSTEM]}" = "darwin" ]
+    [ "$(system_get_system)" = "darwin" ]
 }
 
 
@@ -93,6 +93,22 @@ system_is_7z_needed() {
 # @brief get the number of configured forks
 #
 system_get_forks() {
+    if [ "${___g_system[$___GSYSTEM_NFORKS]}" -eq 0 ]; then
+        local cores=1
+
+        _debug "wykrywam liczbe rdzeni..."
+
+        # establish the number of cores
+        cores=$(get_cores "$(system_get_system)")
+
+        # sanity checks
+        [ "${#cores}" -eq 0 ] && cores=1
+        [ "$cores" -eq 0 ] && cores=1
+
+        # two threads on one core should be safe enough
+        system_set_forks $(( cores * 2 ))
+    fi
+
     echo "${___g_system[$___GSYSTEM_NFORKS]}"
 }
 
@@ -109,6 +125,11 @@ system_set_forks() {
 # @brief get system type
 #
 system_get_system() {
+    if [ "${___g_system[$___GSYSTEM_SYSTEM]}" = 'none' ]; then
+        _debug $LINENO "weryfikuje system"
+        ___g_system[$___GSYSTEM_SYSTEM]="$(get_system)"
+    fi
+
     echo "${___g_system[$___GSYSTEM_SYSTEM]}"
 }
 
@@ -152,34 +173,12 @@ system_verify_napi_id() {
 
 
 #
-# @brief verify system settings and gather info about commands
-#
-system_configure() {
-    local cores=1
-    _debug $LINENO "weryfikuje system"
-
-    # detect the system first
-    ___g_system[$___GSYSTEM_SYSTEM]="$(get_system)"
-
-    # establish the number of cores
-    cores=$(get_cores "${___g_system[$___GSYSTEM_SYSTEM]}")
-
-    # sanity checks
-    [ "${#cores}" -eq 0 ] && cores=1
-    [ "$cores" -eq 0 ] && cores=1
-
-    # two threads on one core should be safe enough
-    set_forks $(( cores * 2 ))
-}
-
-
-#
 # @brief set the desired output file encoding
 #
 system_set_encoding() {
     ___g_system[$___GSYSTEM_ENCODING]="${1:-default}"
     if ! system_verify_encoding; then
-        _warning "charset [$g_charset] niewspierany, ignoruje zadanie"
+        _warning "charset [$1] niewspierany, ignoruje ..."
         ___g_system[$___GSYSTEM_ENCODING]="default"
     fi
     return $RET_OK
@@ -214,7 +213,6 @@ system_verify_encoding() {
 system_set_hook() {
     ___g_system[$___GSYSTEM_HOOK]="$1"
     system_verify_hook
-
 }
 
 
