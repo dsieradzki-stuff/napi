@@ -118,11 +118,6 @@ declare g_sub_format='default'
 declare g_fps_tool='default'
 
 #
-# @brief external script
-#
-declare g_hook='none'
-
-#
 # @brief napiprojekt.pl user credentials
 # 0 - user
 # 1 - password
@@ -592,7 +587,7 @@ parse_argv() {
             ;;
 
             # external script
-            "-S" | "--script") varname="g_hook"
+            "-S" | "--script") funcname="system_set_hook"
             msg="nie okreslono sciezki do skryptu"
             ;;
 
@@ -852,13 +847,6 @@ verify_argv() {
 
     # verify external script
     _debug $LINENO 'sprawdzam zewnetrzny skrypt'
-
-    # shellcheck disable=SC2086
-    if [ "$g_hook" != 'none' ]; then
-       [ ! -x "$g_hook" ] &&
-           _error "podany skrypt jest niedostepny (lub nie ma uprawnien do wykonywania)" &&
-           return $RET_PARAM
-    fi
 
     # shellcheck disable=SC2086
     return $RET_OK
@@ -2221,8 +2209,7 @@ process_file() {
             si=7
 
         # charset conversion (only if freshly downloaded)
-        [ $status -eq $RET_OK ] &&
-            io_convert_encoding "$path/${g_pf[$si]}"
+        [ $status -eq $RET_OK ] && io_convert_encoding "$path/${g_pf[$si]}"
 
         # process nfo requests
         obtain_others "nfo" "$media_path"
@@ -2231,10 +2218,7 @@ process_file() {
         obtain_others "cover" "$media_path"
 
         # process hook - only if some processing has been done
-        [ "$g_hook" != 'none' ] && [ $status -eq $RET_OK ] &&
-            _msg "wywoluje zewnetrzny skrypt" &&
-            $g_hook "$path/${g_pf[$si]}"
-
+        [ $status -eq $RET_OK ] && system_execute_hook "$path/${g_pf[$si]}"
     else
         _status "UNAV" "$media_file"
         g_stats[1]=$(( g_stats[1] + 1 ))

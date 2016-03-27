@@ -32,6 +32,16 @@
 ########################################################################
 
 
+declare -r ___GIO_UNLINK=0
+
+declare -a ___g_io=( 'unlink' )
+
+
+io_unlink() {
+    ${___g_io[$___GIO_UNLINK]} "$@"
+}
+
+
 #
 # @brief detects the charset of the subtitles file
 # @param full path to the subtitles file
@@ -98,8 +108,7 @@ io_convert_encoding_generic() {
         rv=$RET_OK
     fi
 
-    # TODO fix g_cmd_unlink handling
-    [ -e "$tmp" ] && $g_cmd_unlink "$tmp"
+    [ -e "$tmp" ] && io_unlink "$tmp"
 
     return "$rv"
 }
