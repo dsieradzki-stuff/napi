@@ -2222,7 +2222,7 @@ process_file() {
 
         # charset conversion (only if freshly downloaded)
         [ $status -eq $RET_OK ] &&
-            napiprojekt_convert_encoding "$path/${g_pf[$si]}"
+            io_convert_encoding "$path/${g_pf[$si]}"
 
         # process nfo requests
         obtain_others "nfo" "$media_path"
