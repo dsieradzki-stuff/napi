@@ -173,13 +173,6 @@ g_clean_xml=1
 # 1 - flag defining if wget supports post requests
 g_cmd_wget=( 'wget -q -O' '0' )
 
-g_cmd_stat='stat -c%s'
-g_cmd_base64_decode="base64 -d"
-g_cmd_md5='md5sum'
-g_cmd_cp='cp'
-g_cmd_unlink='unlink'
-g_cmd_7z=''
-
 ################################ languages #####################################
 
 # language code arrays
@@ -279,30 +272,6 @@ trap_control_c() {
     _msg $LINENO "przechwycono CTRL+C, koncze wykonywanie...";
     cleanup_tmp_files
     exit $?
-}
-
-
-#
-# configure the wget tool
-#
-configure_wget() {
-    _debug $LINENO "sprawdzam czy wget wspiera opcje -S"
-    local s_test=$(wget --help 2>&1 | grep "\-S")
-
-    [ -n "$s_test" ] &&
-        g_cmd_wget[0]='wget -q -S -O' &&
-        _info $LINENO "wget wspiera opcje -S"
-
-    _debug $LINENO "sprawdzam czy wget wspiera zadania POST"
-    local p_test=$(wget --help 2>&1 | grep "\-\-post\-")
-
-    g_cmd_wget[1]=0
-    [ -n "$p_test" ] &&
-        g_cmd_wget[1]=1 &&
-        _info $LINENO "wget wspiera zadania POST"
-
-    # shellcheck disable=SC2086
-    return $RET_OK
 }
 
 
@@ -462,7 +431,7 @@ parse_argv() {
             "--stats") g_stats_print=1 ;;
 
             # move instead of copy
-            "-M" | "--move") g_cmd_cp='mv' ;;
+            "-M" | "--move") io_cp_set "mv" ;;
 
             # charset conversion
             "-C" | "--charset") funcname="system_set_encoding"
@@ -548,7 +517,9 @@ parse_argv() {
             [ -z "$1" ] && _error "$msg" && return $RET_FAIL
 
             if [ -n "$funcname" ] && ! $funcname "$1"; then
+                local status=$?
                 _error "$funcname failure. Setting parameter failed."
+                # TODO parse the different status codes
                 # shellcheck disable=SC2086
                 return $RET_FAIL
             fi
@@ -580,41 +551,6 @@ verify_credentials() {
     if [ -n "$user" ] && [ -z "$passwd" ]; then
         _warning "podano login, brak hasla. tryb anonimowy."
         rv=$RET_PARAM
-    fi
-
-    return "$rv"
-}
-
-
-#
-# @brief checks id
-#
-verify_id() {
-    local rv=$RET_OK
-
-    # 7z check
-    if system_is_7z_needed && [ -z "$g_cmd_7z" ]; then
-        _error "7z nie jest dostepny. zmieniam id na 'pynapi'. PRZYWRACAM TRYB LEGACY"
-        system_set_napi_id 'pynapi'
-        # shellcheck disable=SC2086
-        return $RET_UNAV
-    fi
-
-
-    # check for necessary tools for napiprojekt3 API
-    if system_is_api_napiprojekt3; then
-        declare -a t=( 'base64' 'awk' )
-        local k=''
-
-        for k in "${t[@]}"; do
-            if ! tools_is_detected "$k"; then
-                _error "$k nie jest dostepny. zmieniam id na 'pynapi'. PRZYWRACAM TRYB LEGACY"
-                system_set_napi_id 'pynapi'
-
-                # shellcheck disable=SC2086
-                return $RET_UNAV
-            fi
-        done
     fi
 
     return "$rv"
@@ -654,34 +590,6 @@ verify_format() {
 
 
 #
-# @brief verify presence of any of the 7z tools
-#
-verify_7z() {
-    local rv=$RET_OK
-    local lv=''
-
-    # check 7z command
-    _debug $LINENO "sprawdzam narzedzie 7z"
-    # use 7z or 7za only, 7zr doesn't support passwords
-    declare -a t7zs=( '7za' '7z' )
-    g_cmd_7z=''
-
-    for k in "${t7zs[@]}"; do
-        tools_is_detected "$k" &&
-            _info $LINENO "7z wykryty jako [$k]" &&
-            g_cmd_7z="$k" &&
-            break
-    done
-
-    [ -z "$g_cmd_7z" ] &&
-        rv=$RET_FAIL &&
-        _info $LINENO 'brak 7z/7za albo 7zr'
-
-    return "$rv"
-}
-
-
-#
 # @brief verify correctness of the argv settings provided
 #
 verify_argv() {
@@ -699,13 +607,6 @@ verify_argv() {
     _debug $LINENO 'normalizacja parametrow numerycznych'
     g_min_size=$(ensure_numeric "$g_min_size")
 
-    # check the 7z tool presence
-    verify_7z
-
-    # verify the id setting
-    _debug $LINENO 'sprawdzam id'
-    verify_id
-    status=$?
 
     case $status in
         $RET_OK )
@@ -782,10 +683,10 @@ download_url() {
 
     # determine whether to perform a GET or a POST
     if [ -z "$post" ]; then
-        headers=$(${g_cmd_wget[0]} "$output" "$url" 2>&1)
+        headers=$(io_wget "$output" "$url" 2>&1)
         status=$?
-    elif [ "${g_cmd_wget[1]}" -eq 1 ]; then
-        headers=$(${g_cmd_wget[0]} "$output" --post-data="$post" "$url" 2>&1)
+    elif io_wget_is_post_available; then
+        headers=$(io_wget "$output" --post-data="$post" "$url" 2>&1)
         status=$?
     fi
 
@@ -1069,7 +970,7 @@ get_xml() {
     if [ "$rv" -eq $RET_OK ]; then
 
         # just a precaution
-        [ -e "$xml_path" ] && size=$($g_cmd_stat "$xml_path")
+        [ -e "$xml_path" ] && size=$(io_stat "$xml_path")
 
         # verify the size
         if [ "$size" -lt "$min_size" ]; then
@@ -1127,11 +1028,11 @@ extract_subs_xml() {
 
     # create archive file
     local tmp_7z_archive=$(mktemp napisy.7z.XXXXXXXX)
-    echo "$subs_content" | extract_cdata_tag | $g_cmd_base64_decode > "$tmp_7z_archive" 2> /dev/null
+    echo "$subs_content" | extract_cdata_tag | io_base64_decode > "$tmp_7z_archive" 2> /dev/null
 
     if [ -s "$tmp_7z_archive" ]; then
         _debug $LINENO "rozpakowuje archiwum ..."
-        $g_cmd_7z x -y -so -p"$napi_pass" "$tmp_7z_archive" 2> /dev/null > "$subs_path"
+        io_7z x -y -so -p"$napi_pass" "$tmp_7z_archive" 2> /dev/null > "$subs_path"
         status=$?
     fi
 
@@ -1256,7 +1157,7 @@ extract_cover_xml() {
     local xml_cover=$(extract_xml_tag 'cover' "$xml_path")
 
     # write archive data
-    echo "$xml_cover" | extract_cdata_tag | $g_cmd_base64_decode > "$cover_path" 2> /dev/null
+    echo "$xml_cover" | extract_cdata_tag | io_base64_decode > "$cover_path" 2> /dev/null
 
     if ! [ -s "$cover_path" ]; then
         _info $LINENO "okladka ma zerowy rozmiar, usuwam..."
@@ -1322,7 +1223,7 @@ download_item_xml() {
     local xml_path="$path/${noext}.xml"
     local byte_size=0
 
-    [ -e "$movie_path" ] && byte_size=$($g_cmd_stat "$movie_path")
+    [ -e "$movie_path" ] && byte_size=$(io_stat "$movie_path")
 
     # xml extract function name
     local func_name="extract_${item}_xml"
@@ -1420,7 +1321,7 @@ download_subs_classic() {
         ;;
 
         "other")
-        $g_cmd_7z x -y -so -p"$napi_pass" "$dof" 2> /dev/null > "$of"
+        io_7z x -y -so -p"$napi_pass" "$dof" 2> /dev/null > "$of"
         status=$?
 
         [ -e "$dof" ] && io_unlink "$dof"
@@ -1520,7 +1421,7 @@ get_subtitles() {
     local lang="$3"
 
     # md5sum and hash calculation
-    local sum=$(dd if="$fn" bs=1024k count=10 2> /dev/null | $g_cmd_md5 | cut -d ' ' -f 1)
+    local sum=$(dd if="$fn" bs=1024k count=10 2> /dev/null | io_stat | cut -d ' ' -f 1)
     local h=0
     local status=$RET_FAIL
 
@@ -1581,7 +1482,7 @@ get_nfo() {
 # @param media file path
 #
 get_cover() {
-    local sum=$(dd if="$1" bs=1024k count=10 2> /dev/null | $g_cmd_md5 | cut -d ' ' -f 1)
+    local sum=$(dd if="$1" bs=1024k count=10 2> /dev/null | io_stat | cut -d ' ' -f 1)
     local path=$(dirname "$1")
     local media_file=$(basename "$1")
     local cover_fn=$(strip_ext "$media_file")
@@ -1686,7 +1587,7 @@ prepare_file_list() {
         else
             # check if the respective file is a video file (by extention)
             ve=$(verify_extension "$file")
-            fs=$($g_cmd_stat "$file")
+            fs=$(io_stat "$file")
 
             if [ "$ve" -eq 1 ] &&
                [ "$fs" -ge $(( min_size*1024*1024 )) ]; then
@@ -1885,8 +1786,6 @@ check_subs_presence() {
     # default - converted unavailable, unconverted unavailable
     local rv=0
 
-    _debug $LINENO "g_cmd_cp = $g_cmd_cp"
-
     if [ "$g_sub_format" != 'default' ]; then
 
         # unconverted unavailable, converted available
@@ -1897,15 +1796,15 @@ check_subs_presence() {
 
         elif [ -e "$path/${g_pf[6]}" ]; then
             _status "COPY" "${g_pf[6]} -> ${g_pf[7]}"
-            $g_cmd_cp "$path/${g_pf[6]}" "$path/${g_pf[7]}"
+            io_cp "$path/${g_pf[6]}" "$path/${g_pf[7]}"
 
         elif [ -e "$path/${g_pf[5]}" ]; then
             _status "COPY" "${g_pf[5]} -> ${g_pf[7]}"
-            $g_cmd_cp "$path/${g_pf[5]}" "$path/${g_pf[7]}"
+            io_cp "$path/${g_pf[5]}" "$path/${g_pf[7]}"
 
         elif [ -e "$path/${g_pf[4]}" ]; then
             _status "COPY" "${g_pf[4]} -> ${g_pf[7]}"
-            $g_cmd_cp "$path/${g_pf[4]}" "$path/${g_pf[7]}"
+            io_cp "$path/${g_pf[4]}" "$path/${g_pf[7]}"
 
         else
             _info $LINENO "skonwertowany plik niedostepny"
@@ -1925,11 +1824,11 @@ check_subs_presence() {
 
     elif [ -e "$path/${g_pf[0]}" ]; then
         _status "COPY" "${g_pf[0]} -> ${g_pf[1]}"
-        $g_cmd_cp "$path/${g_pf[0]}" "$path/${g_pf[1]}"
+        io_cp "$path/${g_pf[0]}" "$path/${g_pf[1]}"
 
     elif [ -e "$path/${g_pf[3]}" ]; then
         _status "COPY" "${g_pf[3]} -> ${g_pf[1]}"
-        $g_cmd_cp "$path/${g_pf[3]}" "$path/${g_pf[1]}"
+        io_cp "$path/${g_pf[3]}" "$path/${g_pf[1]}"
 
     else
         _info $LINENO "oryginalny plik niedostepny"
@@ -2388,12 +2287,8 @@ main() {
         _debug $LINENO "interpreter to bash $BASH_VERSION"
     fi
 
-    # commands configuration
-    configure_wget
-
     # verify tools presence
     _debug $LINENO "sprawdzam narzedzia ..."
-
     tools_configure
 
     if [ $? -ne $RET_OK ]; then

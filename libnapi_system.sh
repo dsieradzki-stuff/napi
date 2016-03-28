@@ -147,7 +147,30 @@ system_get_napi_id() {
 #
 system_set_napi_id() {
     ___g_system[$___GSYSTEM_NAPIID]="${1:-pynapi}"
-    verify_napi_id || ___g_system[$___GSYSTEM_NAPIID]='pynapi'
+    system_verify_napi_id || ___g_system[$___GSYSTEM_NAPIID]='pynapi'
+
+    # 7z check
+    if system_is_7z_needed && [ "$(io_get_7z)" = "none" ]; then
+        _error "7z nie jest dostepny. zmieniam id na 'pynapi'. PRZYWRACAM TRYB LEGACY"
+        ___g_system[$___GSYSTEM_NAPIID]='pynapi'
+    fi
+
+    # check for necessary tools for napiprojekt3 API
+    if system_is_api_napiprojekt3; then
+        declare -a t=( 'base64' 'awk' )
+        local k=''
+
+        for k in "${t[@]}"; do
+            if ! tools_is_detected "$k"; then
+                _error "$k nie jest dostepny. zmieniam id na 'pynapi'. PRZYWRACAM TRYB LEGACY"
+                ___g_system[$___GSYSTEM_NAPIID]='pynapi'
+                # shellcheck disable=SC2086
+                return $RET_UNAV
+            fi
+        done
+    fi
+
+    return $RET_OK
 }
 
 

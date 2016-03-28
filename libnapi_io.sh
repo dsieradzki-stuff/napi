@@ -38,9 +38,10 @@ declare -r ___GIO_BASE64=2
 declare -r ___GIO_MD5=3
 declare -r ___GIO_CP=4
 declare -r ___GIO_7Z=5
+declare -r ___GIO_WGET=6
 
-declare -a ___g_io=( 'none' 'stat -c%s' 'base64 -d' \
-    'none' 'cp' 'none' )
+declare -a ___g_io=( 'none' 'none' 'none' \
+    'none' 'cp' 'none' 'none' )
 
 
 #
@@ -149,8 +150,20 @@ io_md5() {
 }
 
 
+#
+# @brief wrapper for copy function
+#
 io_cp() {
     ${___g_io[$___GIO_CP]} "$@"
+}
+
+
+#
+# @brief set copy executable
+#
+io_cp_set() {
+    ___g_io[$___GIO_CP]="${1:-cp}"
+    _debug $LINENO "io_cp = ${___g_io[$___GIO_CP]}"
 }
 
 
@@ -243,3 +256,75 @@ io_convert_encoding() {
         "$filepath" "$encoding"
 }
 
+
+io_get_7z() {
+    echo "${___g_io[$___GIO_7Z]}"
+}
+
+
+#
+# @brief verify presence of any of the 7z tools
+#
+io_configure_7z() {
+    local k=''
+
+    # check 7z command
+    _debug $LINENO "sprawdzam narzedzie 7z"
+
+    # use 7z or 7za only, 7zr doesn't support passwords
+    declare -a t7zs=( '7za' '7z' )
+
+    for k in "${t7zs[@]}"; do
+        tools_is_detected "$k" &&
+            _info $LINENO "7z wykryty jako [$k]" &&
+            ___g_io[$___GIO_7Z]="$k" &&
+            break
+    done
+
+    return $RET_OK
+}
+
+
+#
+# @brief 7z wrapper
+#
+io_7z() {
+    [ "${___g_io[$___GIO_7Z]}" = 'none' ] && io_configure_7z
+    [ "${___g_io[$___GIO_7Z]}" != 'none' ] &&
+        "${___g_io[$___GIO_7Z]}" "$@"
+}
+
+
+io_configure_wget() {
+    local wget_cmd='wget -q -O'
+    local wget_post=0
+
+    _debug $LINENO "sprawdzam czy wget wspiera opcje -S"
+    local s_test=$(wget --help 2>&1 | grep "\-S")
+    [ -n "$s_test" ] &&
+        wget_cmd='wget -q -S -O' &&
+        _info $LINENO "wget wspiera opcje -S"
+
+    _debug $LINENO "sprawdzam czy wget wspiera zadania POST"
+    local p_test=$(wget --help 2>&1 | grep "\-\-post\-")
+    [ -n "$p_test" ] &&
+        wget_post=1 &&
+        _info $LINENO "wget wspiera zadania POST"
+
+    ___g_io[$___GIO_WGET]="$wget_post|$wget_cmd"
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+}
+
+
+io_wget() {
+    [ "${___g_io[$___GIO_WGET]}" = 'none' ] && io_configure_wget
+    ${___g_io[$___GIO_WGET]##[0-9]*|} "$@"
+}
+
+
+io_wget_is_post_available() {
+    [ "${___g_io[$___GIO_WGET]}" = 'none' ] && io_configure_wget
+    [ "${___g_io[$___GIO_WGET]%%|*}" -eq 1 ]
+}
