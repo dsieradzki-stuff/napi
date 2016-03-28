@@ -39,17 +39,118 @@ declare -r ___GIO_MD5=3
 declare -r ___GIO_CP=4
 declare -r ___GIO_7Z=5
 
-declare -a ___g_io=( 'unlink' 'stat -c%s' 'base64 -d' \
-    'md5sum' 'cp' 'none' )
+declare -a ___g_io=( 'none' 'stat -c%s' 'base64 -d' \
+    'none' 'cp' 'none' )
 
 
+#
+# configure the unlink tool
+#
+io_configure_unlink() {
+    # check unlink command
+    _debug $LINENO "sprawdzam obecnosc unlink"
+
+    if ! tools_is_detected "unlink"; then
+        _info $LINENO 'brak unlink, unlink = rm' &&
+        ___g_io[$___GIO_UNLINK]='rm -rf'
+    else
+        ___g_io[$___GIO_UNLINK]='unlink'
+    fi
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+}
+
+
+#
+# @brief unlink wrapper
+#
 io_unlink() {
+    [ "${___g_io[$___GIO_UNLINK]}" = 'none' ] && io_configure_unlink
     ${___g_io[$___GIO_UNLINK]} "$@"
 }
 
 
+#
+# configure the stat tool
+#
+io_configure_stat() {
+    _debug $LINENO "konfiguruje stat"
+
+    # verify stat tool
+    ___g_io[$___GIO_STAT]="stat -c%s"
+
+    if system_is_darwin; then
+        # stat may be installed through macports, check if
+        # there's a need to reconfigure it to BSD flavour
+        "${___g_io[$___GIO_STAT]}" "$0" > /dev/null 2>&1 &&
+            ___g_io[$___GIO_STAT]="stat -f%z"
+    fi
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+}
+
+
+#
+# @brief stat wrapper
+#
 io_stat() {
+    [ "${___g_io[$___GIO_STAT]}" = 'none' ] && io_configure_stat
     ${___g_io[$___GIO_STAT]} "$@"
+}
+
+
+#
+# configure the base64 tool
+#
+io_configure_base64() {
+    _debug $LINENO "sprawdzam base64"
+
+    g_cmd_base64_decode="base64 -d"
+    # verify base64 & md5 tool
+    system_is_darwin && ___g_io[$___GIO_BASE64]="base64 -D"
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+}
+
+
+#
+# @brief base64 wrapper
+#
+io_base64_decode() {
+    [ "${___g_io[$___GIO_BASE64]}" = 'none' ] && io_configure_base64
+    ${___g_io[$___GIO_BASE64]} "$@"
+}
+
+
+#
+# configure the md5 tool
+#
+io_configure_md5() {
+    _debug $LINENO "konfiguruje md5"
+
+    # verify md5 tool
+    ___g_io[$___GIO_MD5]="md5sum"
+    system_is_darwin && ___g_io[$___GIO_MD5]="md5"
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+}
+
+
+#
+# @brief md5 wrapper
+#
+io_md5() {
+    [ "${___g_io[$___GIO_MD5]}" = 'none' ] && io_configure_md5
+    ${___g_io[$___GIO_MD5]} "$@"
+}
+
+
+io_cp() {
+    ${___g_io[$___GIO_CP]} "$@"
 }
 
 
@@ -142,45 +243,3 @@ io_convert_encoding() {
         "$filepath" "$encoding"
 }
 
-
-#
-# configure the md5 tool
-#
-io_configure_md5() {
-    _debug $LINENO "konfiguruje md5"
-
-    # verify md5 tool
-    ___g_io[$___GIO_MD5]="md5sum"
-    system_is_darwin && ___g_io[$___GIO_MD5]="md5"
-    tools_add_tool "${___g_io[$___GIO_MD5]}"
-
-    # shellcheck disable=SC2086
-    return $RET_OK
-}
-
-
-#
-# configure the stat tool
-#
-io_configure_stat() {
-    _debug $LINENO "konfiguruje stat"
-
-    # verify stat tool
-    ___g_io[$___GIO_STAT]="stat -c%s"
-
-    if system_is_darwin; then
-        # stat may be installed through macports, check if
-        # there's a need to reconfigure it to BSD flavour
-        "${___g_io[$___GIO_STAT]}" "$0" > /dev/null 2>&1 &&
-            ___g_io[$___GIO_STAT]="stat -f%z"
-    fi
-
-    # shellcheck disable=SC2086
-    return $RET_OK
-}
-
-
-io_configure() {
-    io_configure_md5
-    io_configure_stat
-}

@@ -306,55 +306,6 @@ configure_wget() {
 }
 
 
-#
-# configure the base64 tool
-#
-configure_base64() {
-    _debug $LINENO "sprawdzam base64"
-
-    # verify base64 & md5 tool
-    if system_is_darwin; then
-        g_cmd_base64_decode="base64 -D"
-    else
-        g_cmd_base64_decode="base64 -d"
-    fi
-
-    # shellcheck disable=SC2086
-    return $RET_OK
-}
-
-
-#
-# configure the unlink tool
-#
-configure_unlink() {
-    # check unlink command
-    _debug $LINENO "sprawdzam obecnosc unlink"
-
-    tools_is_detected "unlink" &&
-        _info $LINENO 'brak unlink, g_cmd_unlink = rm' &&
-        g_cmd_unlink='rm -rf'
-
-    # shellcheck disable=SC2086
-    return $RET_OK
-}
-
-
-#
-# @brief configure external commands
-#
-configure_cmds() {
-    configure_stat
-    configure_md5
-    configure_base64
-    configure_wget
-    configure_unlink
-
-    # shellcheck disable=SC2086
-    return $RET_OK
-}
-
-
 verify_tools() {
 
     declare -a ret=()
@@ -2438,7 +2389,7 @@ main() {
     fi
 
     # commands configuration
-    configure_cmds
+    configure_wget
 
     # verify tools presence
     _debug $LINENO "sprawdzam narzedzia ..."
