@@ -43,7 +43,8 @@ declare -a ___g_tools=( 'tr=1' 'printf=1' 'mktemp=1' 'wget=1' \
     'basename=1' 'dirname=1' 'cat=1' 'cp=1' \
     'mv=1' 'awk=0' 'file=0' 'subotage.sh=0' \
     '7z=0' '7za=0' '7zr=0' 'iconv=0' 'mediainfo=0' \
-    'mplayer=0' 'mplayer2=0' 'ffmpeg=0' 'ffprobe=0' )
+    'mplayer=0' 'mplayer2=0' 'ffmpeg=0' 'ffprobe=0' \
+    'md5|md5sum=1' )
 
 
 # fps detectors
@@ -73,25 +74,29 @@ tools_add_tool() {
 tools_verify() {
     declare -a ret=()
     local rv=$RET_OK
-
-    local tool=''
-    local p=0
-    local m=0
     local t=''
 
     for t in "$@"; do
-        p=1
-        tool=$(get_key "$t")
-        m=$(get_value "$t")
+        local key=$(get_key "$t")
+        local mandatory=$(get_value "$t")
+        local tool=''
+        local counter=0
 
-        ! verify_tool_presence "$tool" && p=0
-        # ret+=( "$tool=$p" )
-        ret=( "${ret[@]}" "$tool=$p" )
+        for tool in ${key//|/ }; do
+            local p=1
+            ! verify_tool_presence "$tool" && p=0
+            ret=( "${ret[@]}" "$tool=$p" )
+            counter=$(( counter + 1 ))
+        done
 
         # break if mandatory tool is missing
-        [ "$m" -eq 1 ] && [ "$p" -eq 0 ] && rv=$RET_FAIL && break
+        [ "$mandatory" -eq 1 ] &&
+            [ "$counter" -eq 0 ] &&
+            rv=$RET_FAIL &&
+            break
     done
 
+    # shellcheck disable=SC2086
     echo ${ret[*]}
 
     # shellcheck disable=SC2086
