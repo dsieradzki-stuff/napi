@@ -135,7 +135,7 @@ strip_ext() {
 
 
 #
-# @brief get the value from strings like key=value
+# @brief get the value from strings like group:key=value or key=value
 #
 get_value() {
     echo "${1##*=}"
@@ -143,10 +143,20 @@ get_value() {
 
 
 #
-# @brief get the key from strings like key=value
+# @brief get the key from strings like group:key=value or key=value
 #
 get_key() {
-    echo "${1%=*}"
+    local k="${1%=*}"
+    echo "${k#*:}"
+}
+
+
+#
+# @brief get the group from strings like group:key=value or key=value
+#
+get_group() {
+    local k="${1%=*}"
+    echo "${k%%:*}"
 }
 
 
@@ -180,6 +190,20 @@ lookup_value() {
             break
         fi
     done
+    return $rv
+}
+
+
+lookup_group_value() {
+    local i=''
+    local results=''
+
+    local rv=$RET_FAIL
+    local group="${1}" && shift
+
+    for i in $*; do
+    done
+
     return $rv
 }
 

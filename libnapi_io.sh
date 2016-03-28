@@ -39,9 +39,10 @@ declare -r ___GIO_MD5=3
 declare -r ___GIO_CP=4
 declare -r ___GIO_7Z=5
 declare -r ___GIO_WGET=6
+declare -r ___GIO_FPS=7
 
 declare -a ___g_io=( 'none' 'none' 'none' \
-    'none' 'cp' 'none' 'none' )
+    'none' 'cp' 'none' 'none' 'none' )
 
 
 #
@@ -318,13 +319,102 @@ io_configure_wget() {
 }
 
 
+#
+# @brief execute wget
+#
 io_wget() {
     [ "${___g_io[$___GIO_WGET]}" = 'none' ] && io_configure_wget
     ${___g_io[$___GIO_WGET]##[0-9]*|} "$@"
 }
 
 
+#
+# @brief return true if wget supports POST
+#
 io_wget_is_post_available() {
     [ "${___g_io[$___GIO_WGET]}" = 'none' ] && io_configure_wget
     [ "${___g_io[$___GIO_WGET]%%|*}" -eq 1 ]
+}
+
+
+#
+# @brief set fps tool
+#
+io_set_fps_tool() {
+    ___g_io[$___GIO_FPS]="${1:-none}"
+}
+
+
+io_verify_fps_tool() {
+    
+}
+
+io_get_fps() {
+
+    _info $LINENO "wykrywam fps uzywajac: ${___g_io[$___GIO_FPS]}"
+    io_get_fps_with_tool "${___g_io[$___GIO_FPS]}" "$@"
+}
+
+
+#
+# @brief detect fps of the video file
+# @param tool
+# @param filename
+#
+io_get_fps_with_tool() {
+    local fps=0
+    local tbr=0
+    local t="${1:-none}"
+    local tmp=''
+    declare -a atmp=()
+
+    # don't bother if there's no tool available or not specified
+    if [ -z "$t" ] || [ "$t" = "none" ]; then
+        echo $fps
+
+        # shellcheck disable=SC2086
+        return $RET_PARAM
+    fi
+
+    if tools_is_detected "$1"; then
+        case "$1" in
+            'mplayer' | 'mplayer2' )
+            fps=$($1 -identify -vo null -ao null -frames 0 "$2" 2> /dev/null | grep ID_VIDEO_FPS | cut -d '=' -f 2)
+            ;;
+
+            'mediainfo' )
+            fps=$($1 --Output='Video;%FrameRate%' "$2")
+            ;;
+
+            'ffmpeg' )
+            tmp=$($1 -i "$2" 2>&1 | grep "Video:")
+            tbr=$(echo "$tmp" | sed 's/, /\n/g' | tr -d ')(' | grep tbr | cut -d ' ' -f 1)
+            fps=$(echo "$tmp" | sed 's/, /\n/g' | grep fps | cut -d ' ' -f 1)
+
+            [ -z "$fps" ] && fps="$tbr"
+            ;;
+
+            'ffprobe' )
+            tmp=$(ffprobe -v 0 -select_streams v -print_format csv -show_entries stream=avg_frame_rate,r_frame_rate -- "$2" | tr ',' ' ')
+            atmp=( $tmp )
+
+            local i=0
+            for i in 1 2; do
+                local a=$(echo "${atmp[$i]}" | cut -d '/' -f 1)
+                local b=$(echo "${atmp[$i]}" | cut -d '/' -f 2)
+                [ "${atmp[$i]}" != "0/0" ] && fps=$(float_div "$a" "$b")
+            done
+            ;;
+
+            *)
+            ;;
+        esac
+    fi
+
+    # just a precaution
+    echo "$fps" | cut -d ' ' -f 1
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+
 }

@@ -326,66 +326,7 @@ get_sub_ext() {
 
 ##################################### fps ######################################
 
-#
-# @brief detect fps of the video file
-# @param tool
-# @param filename
-#
 get_fps() {
-    local fps=0
-    local tbr=0
-    local t="${1:-default}"
-    local tmp=''
-    declare -a atmp=()
-
-    # don't bother if there's no tool available or not specified
-    if [ -z "$t" ] || [ "$t" = "default" ]; then
-        echo $fps
-
-        # shellcheck disable=SC2086
-        return $RET_PARAM
-    fi
-
-    if tools_is_detected "$1"; then
-        case "$1" in
-            'mplayer' | 'mplayer2' )
-            fps=$($1 -identify -vo null -ao null -frames 0 "$2" 2> /dev/null | grep ID_VIDEO_FPS | cut -d '=' -f 2)
-            ;;
-
-            'mediainfo' )
-            fps=$($1 --Output='Video;%FrameRate%' "$2")
-            ;;
-
-            'ffmpeg' )
-            tmp=$($1 -i "$2" 2>&1 | grep "Video:")
-            tbr=$(echo "$tmp" | sed 's/, /\n/g' | tr -d ')(' | grep tbr | cut -d ' ' -f 1)
-            fps=$(echo "$tmp" | sed 's/, /\n/g' | grep fps | cut -d ' ' -f 1)
-
-            [ -z "$fps" ] && fps="$tbr"
-            ;;
-
-            'ffprobe' )
-            tmp=$(ffprobe -v 0 -select_streams v -print_format csv -show_entries stream=avg_frame_rate,r_frame_rate -- "$2" | tr ',' ' ')
-            atmp=( $tmp )
-
-            local i=0
-            for i in 1 2; do
-                local a=$(echo "${atmp[$i]}" | cut -d '/' -f 1)
-                local b=$(echo "${atmp[$i]}" | cut -d '/' -f 2)
-                [ "${atmp[$i]}" != "0/0" ] && fps=$(float_div "$a" "$b")
-            done
-            ;;
-
-            *)
-            ;;
-        esac
-    fi
-
-    # just a precaution
-    echo "$fps" | cut -d ' ' -f 1
-
-    # shellcheck disable=SC2086
-    return $RET_OK
 }
 
 
@@ -483,7 +424,7 @@ parse_argv() {
             msg="nie określono formatu docelowego"
             ;;
 
-            "-P" | "--pref-fps") funcname="tools_set_fps_tool"
+            "-P" | "--pref-fps") funcname="io_set_fps_tool"
             msg="nie określono narzedzia do detekcji fps"
             ;;
 
@@ -1703,9 +1644,7 @@ convert_format() {
     fi
 
     # detect video file framerate
-    [ "$g_fps_tool" != 'default' ] &&
-        _info $LINENO "wykrywam fps uzywajac: $g_fps_tool"
-        fps=$(get_fps "$g_fps_tool" "$media_path")
+    fps=$(io_get_fps "$media_path")
 
     if [ -n "$fps" ] && [ "$fps" != "0" ]; then
         _msg "wykryty fps: $fps"
