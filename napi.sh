@@ -165,14 +165,6 @@ g_stats_print=0
 #
 g_clean_xml=1
 
-################################### TOOLS ######################################
-
-#
-# @brief wget details
-# 0 - cmd
-# 1 - flag defining if wget supports post requests
-g_cmd_wget=( 'wget -q -O' '0' )
-
 ################################ languages #####################################
 
 # language code arrays
