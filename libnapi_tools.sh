@@ -188,7 +188,7 @@ tools_verify_fps_tool() {
     _debug $LINENO 'sprawdzam wybrane narzedzie fps'
 
     # verify selected fps tool
-    if [ "${___g_tools_settings[$___GTOOLS_FPSTOOL]}" != 'default' ]; then
+    if [ "${___g_tools_settings[$___GTOOLS_FPSTOOL]}" != 'none' ]; then
 
         # this function can cope with that kind of input
         # shellcheck disable=SC2068

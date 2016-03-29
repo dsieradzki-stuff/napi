@@ -161,6 +161,14 @@ get_group() {
 
 
 #
+# @brief extract a key=value from an entry of form [group:]key=value
+#
+get_kv_pair() {
+    echo "${1##*:}"
+}
+
+
+#
 # @brief returns numeric value even for non-numeric input
 #
 ensure_numeric() {
@@ -194,17 +202,55 @@ lookup_value() {
 }
 
 
-lookup_group_value() {
+#
+# @brief generic group lookup function
+# @param group name
+# @param extract function
+# @param array
+#
+_group_lookup_generic() {
     local i=''
     local results=''
 
     local rv=$RET_FAIL
     local group="${1}" && shift
+    local extractor="${2}" && shift
 
     for i in $*; do
+        local tg=$(get_group "$i")
+        if [ -n "$tg" ] && [ "$tg" = "$group" ]; then
+            local tk=$("$extractor" "$i")
+            results="$results $tk"
+        fi
     done
 
+    [ -n "$results" ] &&
+        echo "$results" &&
+        rv=$RET_OK
+
     return $rv
+}
+
+
+#
+# @brief search for specified group and return it's keys as string
+# @param group
+# @param array
+#
+lookup_group_keys() {
+    local group="${1}" && shift
+    _group_lookup_generic "$group" "get_key" "$@"
+}
+
+
+#
+# @brief search for specified group and return it's keys=value pairs as string
+# @param group
+# @param array
+#
+lookup_group_kv() {
+    local group="${1}" && shift
+    _group_lookup_generic "$group" "get_kv_pair" "$@"
 }
 
 
