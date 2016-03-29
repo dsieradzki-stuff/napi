@@ -324,12 +324,6 @@ get_sub_ext() {
     return $RET_OK
 }
 
-##################################### fps ######################################
-
-get_fps() {
-}
-
-
 #################################### ARGV ######################################
 
 #
@@ -2185,22 +2179,20 @@ usage() {
     else
         echo " napi.sh -f subrip *       - sciaga napisy dla kazdego znalezionego pliku"
         echo "                           po czym konwertuje je do formatu subrip"
+        echo
 
-        local c_fps=$(tools_count_fps_detectors)
+        local c_fps=$(tools_count_detected_group_members "fps")
 
         if [ "$c_fps" -gt 0 ]; then
-            echo
             echo "Wykryte narzedzia detekcji FPS"
-            tools_fpstools_print_with_status
-            echo
         else
-            echo
             echo "By moc okreslac FPS na podstawie pliku video a nie na"
             echo "podstawie pierwszej linii pliku (w przypadku konwersji z microdvd)"
             echo "zainstaluj dodatkowo jedno z tych narzedzi (dowolne)"
-            tools_fpstools_print
-            echo
         fi
+
+        tools_group_to_list "fps"
+        echo
     fi
 
     # shellcheck disable=SC2086

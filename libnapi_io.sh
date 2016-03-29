@@ -342,15 +342,48 @@ io_wget_is_post_available() {
 #
 io_set_fps_tool() {
     ___g_io[$___GIO_FPS]="${1:-none}"
+
+    if ! io_verify_fps_tool; then
+        ___g_io[$___GIO_FPS]="unavailable"
+        return $RET_PARAM
+    fi
+
+    return $RET_OK
 }
 
 
 io_verify_fps_tool() {
-    
+    # fps tool verification
+    _debug $LINENO 'sprawdzam wybrane narzedzie fps'
+
+    # don't do anything if the tool has been already marked as unavailable
+    [ "${___g_io[$___GIO_FPS]}" = 'unavailable' ] &&
+        _debug $LINENO 'narzedzie oznaczone jako niedostepne' &&
+        return $RET_UNAV
+
+    # verify selected fps tool
+    if [ "${___g_io[$___GIO_FPS]}" != 'none' ]; then
+        ! tools_is_in_group_and_detected &&
+            _error "podane narzedzie jest niewspierane lub niedostepne" &&
+            return $RET_PARAM
+    else
+        # choose first available as the default tool
+        local firstav=''
+        firstav=$(tools_first_available_from_group "fps")
+        [ -z "$firstav" ] &&
+            _error "brak narzedzi do wykrywania fps" &&
+            return $RET_PARAM
+
+         ___g_io[$___GIO_FPS]="$firstav"
+    fi
+
+    # shellcheck disable=SC2086
+    return $RET_OK
 }
 
-io_get_fps() {
 
+io_get_fps() {
+    [ "${___g_io[$___GIO_WGET]}" = 'none' ] && io_verify_fps_tool
     _info $LINENO "wykrywam fps uzywajac: ${___g_io[$___GIO_FPS]}"
     io_get_fps_with_tool "${___g_io[$___GIO_FPS]}" "$@"
 }
@@ -369,7 +402,9 @@ io_get_fps_with_tool() {
     declare -a atmp=()
 
     # don't bother if there's no tool available or not specified
-    if [ -z "$t" ] || [ "$t" = "none" ]; then
+    if [ -z "$t" ] ||
+        [ "$t" = "none" ] ||
+        [ "$t" = "unavailable" ]; then
         echo $fps
 
         # shellcheck disable=SC2086

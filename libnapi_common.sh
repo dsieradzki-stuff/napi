@@ -214,7 +214,7 @@ _group_lookup_generic() {
 
     local rv=$RET_FAIL
     local group="${1}" && shift
-    local extractor="${2}" && shift
+    local extractor="${1}" && shift
 
     for i in $*; do
         local tg=$(get_group "$i")
