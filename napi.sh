@@ -435,24 +435,45 @@ parse_argv() {
             ;;
         esac
 
-        # set the global var for simple switches
-        # not requiring any further verification
-        if [ -n "$funcname" ] || [ -n "$varname" ]; then
-            shift
+        shift
+
+        # check if there's anything to do
+        [ -z "$funcname" -a -z "$varname" ] && continue
+
+        # check if there's any argument provided
+        # shellcheck disable=SC2086
+        [ -z "$1" ] && _error "$msg" && return $RET_FAIL
+
+        # call the setter
+        if [ -n "$funcname" ]; then
+            _debug $LINENO "wywoluje [$funcname]"
+
+            $funcname "$1"
+            local status=$?
+
+            # parse the different status codes
+            case $status in
+                $RET_OK )
+                    _debug $LINENO "pomyslnie wywolano [$funcname]"
+                    ;;
+
+                $RET_UNAV )
+                    _warning "nie wszystkie narzedzia sa dostepne. Zainstaluj brakujace narzedzia."
+                    ;;
+
+                *)
+                    _error "nieznany blad, po wywolaniu [$funcname] ..."
+                    ;;
+            esac
 
             # shellcheck disable=SC2086
-            [ -z "$1" ] && _error "$msg" && return $RET_FAIL
+            return $RET_FAIL
 
-            if [ -n "$funcname" ] && ! $funcname "$1"; then
-                local status=$?
-                _error "$funcname failure. Setting parameter failed."
-                # TODO parse the different status codes
-                # shellcheck disable=SC2086
-                return $RET_FAIL
-            fi
-
-            [ -n "$varname" ] && eval "${varname}=\$1"
+        # ... or set a global variable
+        elif [ -n "$varname" ]; then
+            eval "${varname}=\$1"
         fi
+
         shift
     done
 
@@ -520,6 +541,10 @@ verify_format() {
 # @brief verify correctness of the argv settings provided
 #
 verify_argv() {
+    # 1. credential verification
+    # 2. g_min_size normalisation
+    # 3. language verification
+    # 4. format verification
     local status=0
 
     _debug $LINENO "weryfikacja argumentow"
@@ -534,23 +559,6 @@ verify_argv() {
     _debug $LINENO 'normalizacja parametrow numerycznych'
     g_min_size=$(ensure_numeric "$g_min_size")
 
-
-    case $status in
-        $RET_OK )
-            _debug $LINENO "id zweryfikowane pomyslnie [$(system_get_napi_id)]"
-            ;;
-
-        $RET_UNAV )
-            _warning "nie wszystkie narzedzia sa dostepne. Zainstaluj brakujace narzedzia by korzystac z nowego API napiprojekt"
-            ;;
-
-        *)
-            _error "nieznany blad, podczas weryfikacji id..."
-
-            # shellcheck disable=SC2086
-            return $RET_BREAK
-            ;;
-    esac
 
     # language verification
     _debug $LINENO 'sprawdzam wybrany jezyk'
@@ -578,11 +586,6 @@ verify_argv() {
     # format verification
     _debug $LINENO 'sprawdzam format'
     ! verify_format && return $RET_PARAM
-
-    ! verify_fps_tool && return $RET_PARAM
-
-    # verify external script
-    _debug $LINENO 'sprawdzam zewnetrzny skrypt'
 
     # shellcheck disable=SC2086
     return $RET_OK
