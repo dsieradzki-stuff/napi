@@ -113,11 +113,6 @@ declare g_default_ext='txt'
 declare g_sub_format='default'
 
 #
-# @brief preferred fps detection tool
-#
-declare g_fps_tool='default'
-
-#
 # @brief napiprojekt.pl user credentials
 # 0 - user
 # 1 - password
@@ -264,36 +259,6 @@ trap_control_c() {
     _msg $LINENO "przechwycono CTRL+C, koncze wykonywanie...";
     cleanup_tmp_files
     exit $?
-}
-
-
-verify_tools() {
-
-    declare -a ret=()
-    local rv=$RET_OK
-
-    local tool=''
-    local p=0
-    local m=0
-    local t=''
-
-    for t in "$@"; do
-        p=1
-        tool=$(get_key "$t")
-        m=$(get_value "$t")
-
-        ! verify_tool_presence "$tool" && p=0
-        # ret+=( "$tool=$p" )
-        ret=( "${ret[@]}" "$tool=$p" )
-
-        # break if mandatory tool is missing
-        [ "$m" -eq 1 ] && [ "$p" -eq 0 ] && rv=$RET_FAIL && break
-    done
-
-    echo ${ret[*]}
-
-    # shellcheck disable=SC2086
-    return $rv
 }
 
 
