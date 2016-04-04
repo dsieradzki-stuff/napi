@@ -98,11 +98,6 @@ declare g_skip=0
 declare g_delete_orig=0
 
 #
-# @brief default subtitles language
-#
-declare g_lang='PL'
-
-#
 # @brief default subtitles extension
 #
 declare g_default_ext='txt'
@@ -159,90 +154,6 @@ g_stats_print=0
 #
 #
 g_clean_xml=1
-
-################################ languages #####################################
-
-# language code arrays
-declare -ar g_Language=( 'Albański' 'Angielski' 'Arabski' 'Bułgarski' \
-        'Chiński' 'Chorwacki' 'Czeski' 'Duński' \
-        'Estoński' 'Fiński' 'Francuski' 'Galicyjski' \
-        'Grecki' 'Hebrajski' 'Hiszpanski' 'Holenderski' \
-        'Indonezyjski' 'Japoński' 'Koreański' 'Macedoński' \
-        'Niemiecki' 'Norweski' 'Oksytański' 'Perski' \
-        'Polski' 'Portugalski' 'Portugalski' 'Rosyjski' \
-        'Rumuński' 'Serbski' 'Słoweński' 'Szwedzki' \
-        'Słowacki' 'Turecki' 'Wietnamski' 'Węgierski' 'Włoski' )
-
-declare -ar g_LanguageCodes2L=( 'SQ' 'EN' 'AR' 'BG' 'ZH' 'HR' 'CS' 'DA' 'ET' 'FI' \
-                    'FR' 'GL' 'EL' 'HE' 'ES' 'NL' 'ID' 'JA' 'KO' 'MK' \
-                    'DE' 'NO' 'OC' 'FA' 'PL' 'PT' 'PB' 'RU' 'RO' 'SR' \
-                    'SL' 'SV' 'SK' 'TR' 'VI' 'HU' 'IT' )
-
-declare -ar g_LanguageCodes3L=( 'ALB' 'ENG' 'ARA' 'BUL' 'CHI' 'HRV' 'CZE' \
-                    'DAN' 'EST' 'FIN' 'FRE' 'GLG' 'ELL' 'HEB' \
-                    'SPA' 'DUT' 'IND' 'JPN' 'KOR' 'MAC' 'GER' \
-                    'NOR' 'OCI' 'PER' 'POL' 'POR' 'POB' 'RUS' \
-                    'RUM' 'SCC' 'SLV' 'SWE' 'SLO' 'TUR' 'VIE' 'HUN' 'ITA' )
-
-
-#
-# @brief: list all the supported languages and their respective 2/3 letter codes
-#
-list_languages() {
-    local i=0
-    while [ "$i" -lt "${#g_Language[@]}" ]; do
-        echo "${g_LanguageCodes2L[$i]}/${g_LanguageCodes3L[$i]} - ${g_Language[$i]}"
-        i=$(( i + 1 ))
-    done
-}
-
-
-#
-# @brief verify that the given language code is supported
-#
-verify_language() {
-    local lang="${1:-}"
-    local i=0
-    declare -a l_arr=( )
-
-    # shellcheck disable=SC2086
-    [ ${#lang} -ne 2 ] && [ ${#lang} -ne 3 ] && return $RET_PARAM
-
-    local l_arr_name="g_LanguageCodes${#lang}L";
-    eval l_arr=\( \${${l_arr_name}[@]} \)
-
-    # this function can cope with that kind of input
-    # shellcheck disable=SC2068
-    i=$(lookup_key "$lang" ${l_arr[@]})
-    local found=$?
-
-    echo "$i"
-
-    # shellcheck disable=SC2086
-    [ "$found" -eq $RET_OK ] && return $RET_OK
-
-    # shellcheck disable=SC2086
-    return $RET_FAIL
-}
-
-
-#
-# @brief set the language variable
-# @param: language index
-#
-normalize_language() {
-    local i=${1:-0}
-    i=$(( i + 0 ))
-
-    local lang=${g_LanguageCodes2L[$1]}
-
-    # don't ask me why
-    [ "$lang" = "EN" ] && lang="ENG"
-    echo $lang
-
-    # shellcheck disable=SC2086
-    return $RET_OK
-}
 
 #################################### ENV #######################################
 
@@ -346,7 +257,7 @@ parse_argv() {
             ;;
 
             # languages
-            "-L" | "--language") varname="g_lang"
+            "-L" | "--language") funcname="language_set"
             msg="wybierz jeden z dostepnych 2/3 literowych kodow jezykowych (-L list - zeby wyswietlic)"
             ;;
 
@@ -511,7 +422,6 @@ verify_argv() {
     # 3. language verification
     # 4. format verification
     local status=0
-
     _debug $LINENO "weryfikacja argumentow"
 
     # verify credentials correctness
@@ -523,30 +433,6 @@ verify_argv() {
     # make sure we have a number here
     _debug $LINENO 'normalizacja parametrow numerycznych'
     g_min_size=$(ensure_numeric "$g_min_size")
-
-
-    # language verification
-    _debug $LINENO 'sprawdzam wybrany jezyk'
-    local idx=0
-    idx=$(verify_language "$g_lang")
-    status=$?
-
-    if [ "$status" -ne $RET_OK ]; then
-        if [ "$g_lang" = "list" ]; then
-            list_languages
-
-            # shellcheck disable=SC2086
-            return $RET_BREAK
-        else
-            _warning "nieznany jezyk [$g_lang]. przywracam PL"
-            g_lang='PL'
-        fi
-    else
-        _debug $LINENO "jezyk znaleziony, index = $idx"
-        g_lang=$(normalize_language "$idx")
-    fi
-    unset idx
-
 
     # format verification
     _debug $LINENO 'sprawdzam format'
