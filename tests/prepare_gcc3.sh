@@ -52,12 +52,12 @@ export CPLUS_INCLUDE_PATH=/usr/include/$(gcc -print-multiarch)
 
 cd /tmp
 
-if ! [[ -e gcc-3.0.tar.bz2  ]]; then
-	wget http://gcc.igor.onlinedirect.bg/old-releases/gcc-3/gcc-3.0.tar.bz2
+if ! [[ -e gcc-3.0.tar.gz  ]]; then
+    wget https://ftp.gnu.org/gnu/gcc/gcc-3.0/gcc-3.0.tar.gz
 fi
 
 if ! [[ -e gcc-3.0 ]]; then
-	tar jvxf gcc-3.0.tar.bz2
+	tar zvxf gcc-3.0.tar.gz
 	cd gcc-3.0
 	patch -p1 -i /vagrant/tests/0001-collect-open-issue.patch
 	cd ..
