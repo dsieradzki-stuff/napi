@@ -32,41 +32,51 @@
 ########################################################################
 ########################################################################
 
+declare -r GCC_PATCH="0001-collect-open-issue.patch"
+declare -r GCC_ARCHIVE="gcc-3.0.tar.gz"
+declare -r GCC_URL="https://ftp.gnu.org/gnu/gcc/gcc-3.0/gcc-3.0.tar.gz"
 
-path_root=""
+declare -r WORKDIR="/tmp"
 
-if [[ -z "$1" ]]; then
-	echo "prepare_gcc3.sh <installation_root_path>"
+declare -r GCC_PREFIX="/opt/gcc-3.0"
+declare -r GCC_SRC="$WORKDIR/gcc-3.0"
+declare -r GCC_BLD="$WORKDIR/gcc-build"
+
+
+[ -e "$GCC_PREFIX" ] &&
+	echo "GCC3 already installed. Nothing to do. Skipping" &&
+	exit
+
+if ! [[ -e "$WORKDIR/$GCC_PATCH" ]]; then
+	echo "Won't be able to prepare gcc3, required patch is missing."
 	exit
 fi
-path_root="$1"
 
-if [[ -e "${path_root}/gcc-3.0" ]]; then
-	echo "GCC3 already installed. Nothing to do. Skipping"
-	exit
-fi
 
 export LIBRARY_PATH=/usr/lib/$(gcc -print-multiarch)
 export C_INCLUDE_PATH=/usr/include/$(gcc -print-multiarch)
 export CPLUS_INCLUDE_PATH=/usr/include/$(gcc -print-multiarch)
 
-cd /tmp
 
-if ! [[ -e gcc-3.0.tar.gz  ]]; then
-    wget https://ftp.gnu.org/gnu/gcc/gcc-3.0/gcc-3.0.tar.gz
-fi
+[ -e "$WORKDIR/$GCC_ARCHIVE"  ] || wget -O "$WORKDIR/$GCC_ARCHIVE" "$GCC_URL"
+[ -e "$GCC_SRC" ] || {
+	tar zvxf "$WORKDIR/$GCC_ARCHIVE" -C "$WORKDIR" &&
+        patch -D "$GCC_SRC" -p1 -i "$WORKDIR/$GCC_PATCH"
+}
 
-if ! [[ -e gcc-3.0 ]]; then
-	tar zvxf gcc-3.0.tar.gz
-	cd gcc-3.0
-	patch -p1 -i /vagrant/tests/0001-collect-open-issue.patch
-	cd ..
-fi
 
-mkdir -p gcc-build
-cd gcc-build
+mkdir -p "$GCC_BLD"
 
-../gcc-3.0/configure --prefix="${path_root}/gcc-3.0" --enable-shared --enable-languages=c --disable-libgcj --disable-java-net --disable-static-libjava
-make 2>&1 | tee compilation.log
-sudo make install
-rm -rf gcc-build
+
+cd "$GCC_BLD" && "$GCC_SRC/configure" \
+    --prefix=/opt/gcc-3.0 \
+    --host=i686-linux-gnu \
+    --build=i686-linux-gnu \
+    --enable-shared \
+    --enable-languages=c \
+    --disable-libgcj \
+    --disable-java-net \
+    --disable-static-libjava
+
+
+make && make install && rm -rf "$GCC_BLD"
