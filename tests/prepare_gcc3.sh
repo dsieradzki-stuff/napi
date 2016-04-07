@@ -61,7 +61,7 @@ export CPLUS_INCLUDE_PATH=/usr/include/$(gcc -print-multiarch)
 [ -e "$WORKDIR/$GCC_ARCHIVE"  ] || wget -O "$WORKDIR/$GCC_ARCHIVE" "$GCC_URL"
 [ -e "$GCC_SRC" ] || {
 	tar zvxf "$WORKDIR/$GCC_ARCHIVE" -C "$WORKDIR" &&
-        patch -D "$GCC_SRC" -p1 -i "$WORKDIR/$GCC_PATCH"
+        patch -d "$GCC_SRC" -p1 -i "$WORKDIR/$GCC_PATCH"
 }
 
 
