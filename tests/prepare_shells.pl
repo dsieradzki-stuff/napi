@@ -9,7 +9,7 @@ use LWP::Simple;
 use Archive::Extract;
 use File::Temp;
 
-my $prefix = shift // "/opt/bash";
+my $prefix = shift // "/opt/napi/bash";
 
 my $url = "http://ftp.gnu.org/gnu/bash";
 
