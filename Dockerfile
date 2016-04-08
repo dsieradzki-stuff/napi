@@ -23,21 +23,18 @@ RUN apt-get install -y \
         wget \
         automake \
         autoconf \
-        make
+        make \
+        texinfo \
+        install-info
 
 
 ENV VAGRANT_HOME /home/vagrant
-ENV VAGRANT_DIR /vagrant
+ENV VAGRANT_BIN $VAGRANT_HOME/bin
 
 RUN useradd -m -U vagrant
-RUN mkdir -p $VAGRANT_HOME/bin
-RUN mkdir -p $VAGRANT_HOME/napi_bin
-RUN ln -sf /bin/busybox $VAGRANT_HOME/bin/sh
+RUN mkdir -p $VAGRANT_BIN
+RUN ln -sf /bin/busybox $VAGRANT_BIN
 
-WORKDIR $VAGRANT_HOME
-
-ADD tests/prepare_gcc3.sh /tmp
-ADD tests/patch/0001-collect-open-issue.patch /tmp
-
-RUN chmod +x /tmp/prepare_gcc3.sh
-RUN /tmp/prepare_gcc3.sh
+ADD tests/prepare_shells.pl /tmp
+RUN chmod +x /tmp/prepare_shells.pl
+RUN /tmp/prepare_shells.pl

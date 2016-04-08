@@ -40,6 +40,4 @@ print "Preparing shells\n";
 
 $NapiTest::path_root = shift || '/home/vagrant';
 
-NapiTest::prepare_env();
-NapiTest::prepare_shells();
 NapiTest::prepare_assets();
