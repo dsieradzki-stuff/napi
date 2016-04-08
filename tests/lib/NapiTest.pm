@@ -47,6 +47,7 @@ our $testspace = $path_root . '/testspace';
 our $assets = $path_root . '/napi_test_files';
 our $install_path = $path_root . '/napi_bin';
 
+
 sub prepare_fs {
 
 	my @dirs = (
@@ -69,22 +70,6 @@ sub prepare_fs {
 sub clean_testspace {
 	print "Cleaning testspace\n";
 	remove_tree glob $testspace . "/*";
-}
-
-
-sub prepare_assets {
-	my $assets_tgz = "napi_test_files.tgz";
-	my $assets_path = $path_root . '/' . $assets_tgz;
-	my $url = "https://www.dropbox.com/s/gq2wbfkl7ep1uy8/napi_test_files.tgz";
-
-	mkdir $testspace;
-	
-	croak "assets directory already exists\n" and return if ( -e $assets ); 
-	print "Downloading assets\n" and system("wget $url -O $assets_path")
-		unless ( -e $assets_path );
-
-	my $ae = Archive::Extract->new( archive => $assets_path );
-	$ae->extract( to => $path_root ) and print "Unpacked assets\n";
 }
 
 
