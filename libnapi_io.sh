@@ -447,3 +447,29 @@ io_get_fps_with_tool() {
     return $RET_OK
 
 }
+
+io_verify_sub_format() {
+    local format="$1"
+
+    _debug $LINENO "Weryfikuje format napisow: $format"
+
+    if ! tools_is_detected "subotage.sh"; then
+        _error "subotage.sh nie jest dostepny. konwersja nie jest mozliwa"
+
+        # shellcheck disable=SC2086
+        return $RET_PARAM
+    fi
+
+    declare -a formats=()
+    formats=( $(subotage.sh -gf) )
+
+    # this function can cope with that kind of input
+    # shellcheck disable=SC2068
+    if ! lookup_key "$format" ${formats[@]} > /dev/null; then
+        _error "podany format docelowy jest niepoprawny [$format]"
+        # shellcheck disable=SC2086
+        return $RET_PARAM
+    fi
+
+    return $RET_OK
+}
