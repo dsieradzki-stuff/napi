@@ -63,16 +63,6 @@ io_configure_unlink() {
     return $RET_OK
 }
 
-
-#
-# @brief unlink wrapper
-#
-io_unlink() {
-    [ "${___g_io[$___GIO_UNLINK]}" = 'none' ] && io_configure_unlink
-    ${___g_io[$___GIO_UNLINK]} "$@"
-}
-
-
 #
 # configure the stat tool
 #
@@ -93,16 +83,6 @@ io_configure_stat() {
     return $RET_OK
 }
 
-
-#
-# @brief stat wrapper
-#
-io_stat() {
-    [ "${___g_io[$___GIO_STAT]}" = 'none' ] && io_configure_stat
-    ${___g_io[$___GIO_STAT]} "$@"
-}
-
-
 #
 # configure the base64 tool
 #
@@ -116,16 +96,6 @@ io_configure_base64() {
     # shellcheck disable=SC2086
     return $RET_OK
 }
-
-
-#
-# @brief base64 wrapper
-#
-io_base64_decode() {
-    [ "${___g_io[$___GIO_BASE64]}" = 'none' ] && io_configure_base64
-    ${___g_io[$___GIO_BASE64]} "$@"
-}
-
 
 #
 # configure the md5 tool
@@ -141,6 +111,76 @@ io_configure_md5() {
     return $RET_OK
 }
 
+#
+# @brief verify presence of any of the 7z tools
+#
+io_configure_7z() {
+    local k=''
+
+    # check 7z command
+    _debug $LINENO "sprawdzam narzedzie 7z"
+
+    # use 7z or 7za only, 7zr doesn't support passwords
+    declare -a t7zs=( '7za' '7z' )
+
+    for k in "${t7zs[@]}"; do
+        tools_is_detected "$k" &&
+            _info $LINENO "7z wykryty jako [$k]" &&
+            ___g_io[$___GIO_7Z]="$k" &&
+            break
+    done
+
+    return $RET_OK
+}
+
+io_configure_wget() {
+    local wget_cmd='wget -q -O'
+    local wget_post=0
+
+    _debug $LINENO "sprawdzam czy wget wspiera opcje -S"
+    local s_test=$(wget --help 2>&1 | grep "\-S")
+    [ -n "$s_test" ] &&
+        wget_cmd='wget -q -S -O' &&
+        _info $LINENO "wget wspiera opcje -S"
+
+    _debug $LINENO "sprawdzam czy wget wspiera zadania POST"
+    local p_test=$(wget --help 2>&1 | grep "\-\-post\-")
+    [ -n "$p_test" ] &&
+        wget_post=1 &&
+        _info $LINENO "wget wspiera zadania POST"
+
+    # Entry format is:
+    # <POST_SUPPORT=0|1>|<WGET_CMD>
+    ___g_io[$___GIO_WGET]="$wget_post|$wget_cmd"
+
+    # shellcheck disable=SC2086
+    return $RET_OK
+}
+
+#
+# @brief unlink wrapper
+#
+io_unlink() {
+    [ "${___g_io[$___GIO_UNLINK]}" = 'none' ] && io_configure_unlink
+    ${___g_io[$___GIO_UNLINK]} "$@"
+}
+
+#
+# @brief stat wrapper
+#
+io_stat() {
+    [ "${___g_io[$___GIO_STAT]}" = 'none' ] && io_configure_stat
+    ${___g_io[$___GIO_STAT]} "$@"
+}
+
+
+#
+# @brief base64 wrapper
+#
+io_base64_decode() {
+    [ "${___g_io[$___GIO_BASE64]}" = 'none' ] && io_configure_base64
+    ${___g_io[$___GIO_BASE64]} "$@"
+}
 
 #
 # @brief md5 wrapper
@@ -264,58 +304,12 @@ io_get_7z() {
 
 
 #
-# @brief verify presence of any of the 7z tools
-#
-io_configure_7z() {
-    local k=''
-
-    # check 7z command
-    _debug $LINENO "sprawdzam narzedzie 7z"
-
-    # use 7z or 7za only, 7zr doesn't support passwords
-    declare -a t7zs=( '7za' '7z' )
-
-    for k in "${t7zs[@]}"; do
-        tools_is_detected "$k" &&
-            _info $LINENO "7z wykryty jako [$k]" &&
-            ___g_io[$___GIO_7Z]="$k" &&
-            break
-    done
-
-    return $RET_OK
-}
-
-
-#
 # @brief 7z wrapper
 #
 io_7z() {
     [ "${___g_io[$___GIO_7Z]}" = 'none' ] && io_configure_7z
     [ "${___g_io[$___GIO_7Z]}" != 'none' ] &&
         "${___g_io[$___GIO_7Z]}" "$@"
-}
-
-
-io_configure_wget() {
-    local wget_cmd='wget -q -O'
-    local wget_post=0
-
-    _debug $LINENO "sprawdzam czy wget wspiera opcje -S"
-    local s_test=$(wget --help 2>&1 | grep "\-S")
-    [ -n "$s_test" ] &&
-        wget_cmd='wget -q -S -O' &&
-        _info $LINENO "wget wspiera opcje -S"
-
-    _debug $LINENO "sprawdzam czy wget wspiera zadania POST"
-    local p_test=$(wget --help 2>&1 | grep "\-\-post\-")
-    [ -n "$p_test" ] &&
-        wget_post=1 &&
-        _info $LINENO "wget wspiera zadania POST"
-
-    ___g_io[$___GIO_WGET]="$wget_post|$wget_cmd"
-
-    # shellcheck disable=SC2086
-    return $RET_OK
 }
 
 

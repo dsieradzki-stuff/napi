@@ -37,6 +37,8 @@
 # =1 - mandatory tool
 # =0 - optional tool
 #
+# Syntax: [group:]<key1|key2|...>=<value>
+#
 declare -a ___g_tools=( 'tr=1' 'printf=1' 'mktemp=1' 'wget=1' \
     'wc=1' 'dd=1' 'grep=1' 'seq=1' 'sed=1' \
     'cut=1' 'base64=0' 'unlink=0' 'stat=1' \
